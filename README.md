@@ -1,8 +1,4 @@
-bash
-
-cat > /home/claude/gocardless_fixed/README.md << 'EOF'
-
-# GoCardlessClient Elixir SDK (`gocardless_client`)
+# GoCardlessClient
 
 [![Hex.pm](https://img.shields.io/hexpm/v/gocardless_client.svg)](https://hex.pm/packages/gocardless_client)
 [![Documentation](https://img.shields.io/badge/hex-docs-blue.svg)](https://hexdocs.pm/gocardless_client)
