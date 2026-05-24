@@ -64,7 +64,8 @@ defmodule GoCardlessClient.MixProject do
       licenses: ["MIT"],
       links: %{
         "GitHub" => @source_url,
-        "GoCardlessClient API Docs" => "https://developer.gocardless.com/api-reference/"
+        "GoCardlessClient API Docs" => "https://developer.gocardless.com/api-reference/",
+        "Changelog" => "#{@source_url}/blob/master/CHANGELOG.md"
       },
       files: ~w(lib config mix.exs README.md CHANGELOG.md LICENSE .formatter.exs)
     ]
