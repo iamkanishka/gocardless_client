@@ -1,127 +1,100 @@
 defmodule GoCardlessClient.Resources.PaymentsTest do
-  use ExUnit.Case, async: true
+  use GoCardlessClient.TestCase
 
-  import GoCardlessClient.Factory
-
-  alias GoCardlessClient.APIError
-  alias GoCardlessClient.FieldError
-  alias GoCardlessClient.Paginator
   alias GoCardlessClient.Resources.Payments
+  alias Plug.Conn
 
-  describe "Factory.build(:payment)" do
-    test "builds a payment with correct shape" do
+  describe "create/3" do
+    test "POSTs to /payments wrapped in resource key", %{client: client, bypass: bypass} do
       payment = build(:payment)
 
-      assert payment["id"] =~ ~r/\APM/
-      assert payment["amount"] == 1500
-      assert payment["currency"] == "GBP"
-      assert payment["status"] == "pending_submission"
-      assert is_map(payment["links"])
-      assert Map.has_key?(payment["links"], "mandate")
-    end
+      Bypass.expect_once(bypass, "POST", "/payments", fn conn ->
+        {:ok, body, conn} = Conn.read_body(conn)
+        parsed = Jason.decode!(body)
+        assert Map.has_key?(parsed, "payments")
+        assert parsed["payments"]["amount"] == 1500
 
-    test "builds a payment with custom attributes" do
-      payment = build(:payment, %{"amount" => 5000, "status" => "paid_out"})
+        conn
+        |> Conn.put_resp_content_type("application/json")
+        |> Conn.send_resp(201, Jason.encode!(%{"payments" => payment}))
+      end)
 
-      assert payment["amount"] == 5000
-      assert payment["status"] == "paid_out"
-    end
-
-    test "builds a list of payments" do
-      payments = build_list(3, :payment)
-
-      assert length(payments) == 3
-      assert Enum.all?(payments, &(&1["currency"] == "GBP"))
+      assert {:ok, result} = Payments.create(client, %{
+        amount: 1500, currency: "GBP", links: %{mandate: "MD123"}
+      })
+      assert result["amount"] == 1500
     end
   end
 
-  describe "Payments module functions" do
-    test "exports all expected functions" do
-      fns = Payments.__info__(:functions) |> Keyword.keys()
+  describe "cancel/4" do
+    test "POSTs to /payments/:id/actions/cancel", %{client: client, bypass: bypass} do
+      payment = build(:payment, %{"status" => "cancelled"})
 
-      assert :create in fns
-      assert :get in fns
-      assert :update in fns
-      assert :list in fns
-      assert :stream in fns
-      assert :collect_all in fns
-      assert :cancel in fns
-      assert :retry in fns
+      Bypass.expect_once(bypass, "POST", "/payments/PM123/actions/cancel", fn conn ->
+        {:ok, body, conn} = Conn.read_body(conn)
+        parsed = Jason.decode!(body)
+        # action body must be wrapped in resource key, NOT "data"
+        assert Map.has_key?(parsed, "payments"), "action body must use resource key 'payments'"
+
+        conn
+        |> Conn.put_resp_content_type("application/json")
+        |> Conn.send_resp(200, Jason.encode!(%{"payments" => payment}))
+      end)
+
+      assert {:ok, result} = Payments.cancel(client, "PM123")
+      assert result["status"] == "cancelled"
     end
   end
 
-  describe "APIError.from_response/2" do
-    test "parses a payment validation error with multiple fields" do
-      body = %{
-        "error" => %{
-          "type" => "validation_failed",
-          "code" => 422,
-          "message" => "Validation failed",
-          "request_id" => "req_abc123",
-          "documentation_url" =>
-            "https://developer.gocardless.com/api-reference/#validation-failed",
-          "errors" => [
-            %{
-              "field" => "charge_date",
-              "message" => "must be on or after 2024-01-20",
-              "request_pointer" => "/payments/charge_date"
-            },
-            %{
-              "field" => "amount",
-              "message" => "must be greater than 0",
-              "request_pointer" => "/payments/amount"
-            }
-          ]
-        }
-      }
+  describe "retry/4" do
+    test "POSTs to /payments/:id/actions/retry", %{client: client, bypass: bypass} do
+      payment = build(:payment, %{"status" => "pending_submission"})
 
-      err = APIError.from_response(422, body)
+      Bypass.expect_once(bypass, "POST", "/payments/PM123/actions/retry", fn conn ->
+        conn
+        |> Conn.put_resp_content_type("application/json")
+        |> Conn.send_resp(200, Jason.encode!(%{"payments" => payment}))
+      end)
 
-      assert err.status == 422
-      assert err.type == "validation_failed"
-      assert err.request_id == "req_abc123"
-      assert length(err.errors) == 2
-
-      charge_date_err = Enum.find(err.errors, &(&1.field == "charge_date"))
-      assert charge_date_err.message =~ "2024-01-20"
-      assert charge_date_err.request_pointer == "/payments/charge_date"
-    end
-
-    test "handles unexpected response body gracefully" do
-      err = APIError.from_response(503, "Service Unavailable")
-      assert err.status == 503
-      assert err.message == "Unexpected response body"
+      assert {:ok, result} = Payments.retry(client, "PM123", %{charge_date: "2025-03-01"})
+      assert result["status"] == "pending_submission"
     end
   end
 
-  describe "FieldError.from_map/1" do
-    test "maps raw API error fields" do
-      raw = %{
-        "field" => "amount",
-        "message" => "must be greater than 0",
-        "request_pointer" => "/payments/amount"
-      }
+  describe "list/3" do
+    test "returns paginated results", %{client: client, bypass: bypass} do
+      payments = build_list(2, :payment)
 
-      fe = FieldError.from_map(raw)
+      Bypass.expect_once(bypass, "GET", "/payments", fn conn ->
+        conn
+        |> Conn.put_resp_content_type("application/json")
+        |> Conn.send_resp(200, Jason.encode!(%{
+          "payments" => payments,
+          "meta" => %{"cursors" => %{"before" => nil, "after" => "cursor_abc"}}
+        }))
+      end)
 
-      assert fe.field == "amount"
-      assert fe.message == "must be greater than 0"
-      assert fe.request_pointer == "/payments/amount"
+      assert {:ok, %{items: items, meta: meta}} = Payments.list(client, %{mandate: "MD123"})
+      assert length(items) == 2
+      assert meta["cursors"]["after"] == "cursor_abc"
     end
   end
 
-  describe "Paginator.stream/5" do
-    test "returns an Enumerable" do
-      client = GoCardlessClient.Client.new!(access_token: "tok", max_retries: 0)
-      stream = Paginator.stream(client, "/payments", %{}, "payments")
+  describe "update/4" do
+    test "POSTs (not PUT) to update endpoint", %{client: client, bypass: bypass} do
+      payment = build(:payment)
 
-      assert Enumerable.impl_for(stream) != nil
-    end
+      Bypass.expect_once(bypass, "POST", "/payments/PM123", fn conn ->
+        {:ok, body, conn} = Conn.read_body(conn)
+        parsed = Jason.decode!(body)
+        assert Map.has_key?(parsed, "payments")
 
-    test "is lazy and does not immediately make HTTP requests" do
-      client = GoCardlessClient.Client.new!(access_token: "tok", max_retries: 0)
-      _stream = Paginator.stream(client, "/payments", %{status: "paid_out"}, "payments")
-      assert true
+        conn
+        |> Conn.put_resp_content_type("application/json")
+        |> Conn.send_resp(200, Jason.encode!(%{"payments" => payment}))
+      end)
+
+      assert {:ok, _} = Payments.update(client, "PM123", %{metadata: %{ref: "INV-001"}})
     end
   end
 end
