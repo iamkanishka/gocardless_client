@@ -1,54 +1,40 @@
 defmodule GoCardlessClient.Resources.FundsAvailabilities do
   @moduledoc """
-  GoCardlessClient Funds Availabilities API.
+  GoCardless Funds Availabilities API.
 
-  See https://developer.gocardless.com/api-reference/#funds-availabilities for full documentation.
+  Check whether sufficient funds are available in a Payment Account before
+  initiating an outbound payment or withdrawal.
+
+  ## Example
+
+      {:ok, result} = GoCardlessClient.Resources.FundsAvailabilities.check(client, %{
+        amount: 50000,
+        currency: "GBP"
+      })
+
+      if result["available"] do
+        # Proceed with outbound payment
+      else
+        IO.puts("Funds available at: \#{result["available_at"]}")
+      end
   """
 
-  alias GoCardlessClient.{Client, Paginator, Resource}
+  alias GoCardlessClient.{Client, Resource}
 
   @resource_key "funds_availabilities"
   @base_path "/funds_availabilities"
 
-  @doc "Creates a new funds availabilities resource."
-  @spec create(Client.t(), map(), keyword()) ::
+  @doc """
+  Checks whether funds are available for a given amount and currency.
+
+  ## Params
+
+  - `:amount` — amount in minor currency units (required)
+  - `:currency` — ISO 4217 currency code (required)
+  """
+  @spec check(Client.t(), map(), keyword()) ::
           {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
-  def create(%Client{} = client, params, opts \\ []) do
+  def check(%Client{} = client, params, opts \\ []) do
     Resource.post(client, @base_path, @resource_key, params, opts)
-  end
-
-  @doc "Retrieves a single funds availabilities by ID."
-  @spec get(Client.t(), String.t(), keyword()) ::
-          {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
-  def get(%Client{} = client, id, opts \\ []) do
-    Resource.get(client, "#{@base_path}/#{id}", @resource_key, opts)
-  end
-
-  @doc "Updates a funds availabilities."
-  @spec update(Client.t(), String.t(), map(), keyword()) ::
-          {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
-  def update(%Client{} = client, id, params, opts \\ []) do
-    Resource.put(client, "#{@base_path}/#{id}", @resource_key, params, opts)
-  end
-
-  @doc "Lists funds_availabilities with optional filter params."
-  @spec list(Client.t(), map(), keyword()) ::
-          {:ok, %{items: [map()], meta: map()}}
-          | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
-  def list(%Client{} = client, params \\ %{}, opts \\ []) do
-    Resource.list(client, @base_path, @resource_key, params, opts)
-  end
-
-  @doc "Returns a lazy `Stream` over all pages of funds_availabilities."
-  @spec stream(Client.t(), map(), keyword()) :: Enumerable.t()
-  def stream(%Client{} = client, params \\ %{}, opts \\ []) do
-    Paginator.stream(client, @base_path, params, @resource_key, opts)
-  end
-
-  @doc "Eagerly collects all funds_availabilities into a list across all pages."
-  @spec collect_all(Client.t(), map(), keyword()) ::
-          {:ok, [map()]} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
-  def collect_all(%Client{} = client, params \\ %{}, opts \\ []) do
-    Paginator.collect(client, @base_path, params, @resource_key, opts)
   end
 end
