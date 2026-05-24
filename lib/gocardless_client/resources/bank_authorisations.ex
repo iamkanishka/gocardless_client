@@ -1,54 +1,48 @@
 defmodule GoCardlessClient.Resources.BankAuthorisations do
   @moduledoc """
-  GoCardlessClient Bank Authorisations API.
+  GoCardless Bank Authorisations API.
 
-  See https://developer.gocardless.com/api-reference/#bank-authorisations for full documentation.
+  Bank Authorisations are created during Open Banking flows. When a customer
+  needs to authorise via their bank (Instant Bank Payment or Verified Mandate),
+  a Bank Authorisation is created and the customer is redirected to their bank.
+
+  ## Example
+
+      {:ok, auth} = GoCardlessClient.Resources.BankAuthorisations.create(client, %{
+        authorisation_type: "payment",
+        links: %{billing_request: "BRQ123"}
+      })
+
+      # Redirect customer to auth["authorisation_url"]
+      # Then poll or use webhooks to detect completion:
+      {:ok, updated} = GoCardlessClient.Resources.BankAuthorisations.get(client, auth["id"])
+      IO.inspect(updated["status"])  # "authorised", "denied", "expired", etc.
   """
 
-  alias GoCardlessClient.{Client, Paginator, Resource}
+  alias GoCardlessClient.{Client, Resource}
 
   @resource_key "bank_authorisations"
   @base_path "/bank_authorisations"
 
-  @doc "Creates a new bank authorisations resource."
+  @doc """
+  Creates a Bank Authorisation for a Billing Request.
+
+  ## Params
+
+  - `:authorisation_type` — `"mandate"` or `"payment"` (required)
+  - `:redirect_uri` — where to redirect after bank auth (optional)
+  - `links.billing_request` — Billing Request ID (required)
+  """
   @spec create(Client.t(), map(), keyword()) ::
           {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
   def create(%Client{} = client, params, opts \\ []) do
     Resource.post(client, @base_path, @resource_key, params, opts)
   end
 
-  @doc "Retrieves a single bank authorisations by ID."
+  @doc "Retrieves a Bank Authorisation by ID. Poll this to detect status changes."
   @spec get(Client.t(), String.t(), keyword()) ::
           {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
   def get(%Client{} = client, id, opts \\ []) do
     Resource.get(client, "#{@base_path}/#{id}", @resource_key, opts)
-  end
-
-  @doc "Updates a bank authorisations."
-  @spec update(Client.t(), String.t(), map(), keyword()) ::
-          {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
-  def update(%Client{} = client, id, params, opts \\ []) do
-    Resource.put(client, "#{@base_path}/#{id}", @resource_key, params, opts)
-  end
-
-  @doc "Lists bank_authorisations with optional filter params."
-  @spec list(Client.t(), map(), keyword()) ::
-          {:ok, %{items: [map()], meta: map()}}
-          | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
-  def list(%Client{} = client, params \\ %{}, opts \\ []) do
-    Resource.list(client, @base_path, @resource_key, params, opts)
-  end
-
-  @doc "Returns a lazy `Stream` over all pages of bank_authorisations."
-  @spec stream(Client.t(), map(), keyword()) :: Enumerable.t()
-  def stream(%Client{} = client, params \\ %{}, opts \\ []) do
-    Paginator.stream(client, @base_path, params, @resource_key, opts)
-  end
-
-  @doc "Eagerly collects all bank_authorisations into a list across all pages."
-  @spec collect_all(Client.t(), map(), keyword()) ::
-          {:ok, [map()]} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
-  def collect_all(%Client{} = client, params \\ %{}, opts \\ []) do
-    Paginator.collect(client, @base_path, params, @resource_key, opts)
   end
 end
