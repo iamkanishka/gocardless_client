@@ -1,54 +1,50 @@
 defmodule GoCardlessClient.Resources.BankDetailsLookups do
   @moduledoc """
-  GoCardlessClient Bank Details Lookups API.
+  GoCardless Bank Details Lookups API.
 
-  See https://developer.gocardless.com/api-reference/#bank-details-lookups for full documentation.
+  Validates bank account details and returns bank information from account/routing
+  numbers or an IBAN. Use this before creating a Customer Bank Account to catch
+  invalid details early.
+
+  The response includes `available_debit_schemes` — the list of Direct Debit
+  schemes the account is compatible with (e.g. `["bacs"]`).
+
+  ## Example — UK sort code + account number
+
+      {:ok, result} = GoCardlessClient.Resources.BankDetailsLookups.lookup(client, %{
+        account_number: "55779911",
+        branch_code: "200000",
+        country_code: "GB"
+      })
+
+      IO.inspect(result["bank_name"])              # "BARCLAYS BANK PLC"
+      IO.inspect(result["available_debit_schemes"]) # ["bacs"]
+
+  ## Example — IBAN
+
+      {:ok, result} = GoCardlessClient.Resources.BankDetailsLookups.lookup(client, %{
+        iban: "GB60BARC20000055779911"
+      })
   """
 
-  alias GoCardlessClient.{Client, Paginator, Resource}
+  alias GoCardlessClient.{Client, Resource}
 
   @resource_key "bank_details_lookups"
   @base_path "/bank_details_lookups"
 
-  @doc "Creates a new bank details lookups resource."
-  @spec create(Client.t(), map(), keyword()) ::
+  @doc """
+  Performs a bank account details lookup.
+
+  ## Params (provide one of: sort_code + account_number, or iban)
+
+  - `:account_number` — account number (required if no IBAN)
+  - `:branch_code` — sort code / routing number / BSB (required if no IBAN)
+  - `:country_code` — ISO 3166-1 alpha-2 (required if no IBAN)
+  - `:iban` — IBAN (alternative to account_number + branch_code)
+  """
+  @spec lookup(Client.t(), map(), keyword()) ::
           {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
-  def create(%Client{} = client, params, opts \\ []) do
+  def lookup(%Client{} = client, params, opts \\ []) do
     Resource.post(client, @base_path, @resource_key, params, opts)
-  end
-
-  @doc "Retrieves a single bank details lookups by ID."
-  @spec get(Client.t(), String.t(), keyword()) ::
-          {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
-  def get(%Client{} = client, id, opts \\ []) do
-    Resource.get(client, "#{@base_path}/#{id}", @resource_key, opts)
-  end
-
-  @doc "Updates a bank details lookups."
-  @spec update(Client.t(), String.t(), map(), keyword()) ::
-          {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
-  def update(%Client{} = client, id, params, opts \\ []) do
-    Resource.put(client, "#{@base_path}/#{id}", @resource_key, params, opts)
-  end
-
-  @doc "Lists bank_details_lookups with optional filter params."
-  @spec list(Client.t(), map(), keyword()) ::
-          {:ok, %{items: [map()], meta: map()}}
-          | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
-  def list(%Client{} = client, params \\ %{}, opts \\ []) do
-    Resource.list(client, @base_path, @resource_key, params, opts)
-  end
-
-  @doc "Returns a lazy `Stream` over all pages of bank_details_lookups."
-  @spec stream(Client.t(), map(), keyword()) :: Enumerable.t()
-  def stream(%Client{} = client, params \\ %{}, opts \\ []) do
-    Paginator.stream(client, @base_path, params, @resource_key, opts)
-  end
-
-  @doc "Eagerly collects all bank_details_lookups into a list across all pages."
-  @spec collect_all(Client.t(), map(), keyword()) ::
-          {:ok, [map()]} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
-  def collect_all(%Client{} = client, params \\ %{}, opts \\ []) do
-    Paginator.collect(client, @base_path, params, @resource_key, opts)
   end
 end
