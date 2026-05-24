@@ -1,241 +1,250 @@
 defmodule GoCardlessClient.Webhooks do
   @moduledoc """
-  GoCardlessClient webhook signature verification and event parsing.
+  Webhook signature verification, event parsing, and helper predicates.
 
-  GoCardlessClient signs every webhook request with HMAC-SHA256. You must verify
-  the signature before processing any event to prevent spoofing.
+  Use this module in your web server to securely receive and process GoCardless
+  webhook events. For the webhook delivery log API, see
+  `GoCardlessClient.Resources.Webhooks`.
 
-  ## Low-level usage
+  ## Security
 
-      case GoCardlessClient.Webhooks.parse(body, signature, webhook_secret) do
-        {:ok, events} ->
-          Enum.each(events, &handle_event/1)
-          conn |> put_status(200) |> text("")
+  Always verify the `Webhook-Signature` header before processing any event.
+  GoCardless signs each request with your webhook secret using HMAC-SHA256.
+  This prevents attackers from sending forged webhook events.
 
-        {:error, :invalid_signature} ->
-          conn |> put_status(401) |> text("Forbidden")
+  ## Example (Phoenix controller)
 
-        {:error, :empty_payload} ->
-          conn |> put_status(400) |> text("Bad Request")
+      def webhook(conn, _params) do
+        secret = Application.fetch_env!(:my_app, :gocardless_webhook_secret)
+        raw_body = conn.assigns[:raw_body]
+        signature = get_req_header(conn, "webhook-signature") |> List.first()
+
+        case GoCardlessClient.Webhooks.parse(raw_body, signature, secret) do
+          {:ok, events} ->
+            Enum.each(events, &dispatch_event/1)
+            send_resp(conn, 200, "OK")
+
+          {:error, :invalid_signature} ->
+            send_resp(conn, 498, "Invalid signature")
+
+          {:error, reason} ->
+            send_resp(conn, 400, "Bad request: \#{reason}")
+        end
       end
 
-  ## Plug middleware
+  ## Generating idempotency keys
 
-  Use `GoCardlessClient.Webhooks.Plug` to verify and parse in your Phoenix router:
+      key = GoCardlessClient.Webhooks.idempotency_key()
 
-      pipeline :gocardless_webhooks do
-        plug GoCardlessClient.Webhooks.Plug, secret: "your_webhook_secret"
-      end
+  ## Known GoCardless IP ranges
 
-      scope "/webhooks" do
-        pipe_through :gocardless_webhooks
-        post "/gocardless", MyApp.WebhookController, :handle
-      end
-
-  The parsed events are available in `conn.private[:gocardless_events]`.
-
-  ## Event structure
-
-  Each event is a plain map matching the GoCardlessClient API shape:
-
-      %{
-        "id" => "EV001",
-        "created_at" => "2024-01-15T10:00:00.000Z",
-        "resource_type" => "payments",
-        "action" => "paid_out",
-        "details" => %{"cause" => "payment_paid_out", "description" => "..."},
-        "links" => %{"payment" => "PM123"},
-        "metadata" => %{}
-      }
+  Use `gocardless_ip?/1` to validate the request origin as an additional
+  (not primary) security measure. Always prefer signature verification.
   """
 
-  # Bitwise is required for &&&, |||, bxor, bsl in ip_in_cidr?/2 and secure_compare/2.
-  import Bitwise
+  @max_payload_bytes 10 * 1024 * 1024
 
-  @max_payload_bytes 10 * 1_048_576
+  # GoCardless outbound IP CIDR ranges (current as of 2024)
+  @gc_cidrs [
+    "35.192.0.0/14",
+    "35.196.0.0/14",
+    "35.200.0.0/13",
+    "35.208.0.0/12",
+    "35.224.0.0/12",
+    "35.240.0.0/13",
+    "104.196.0.0/14",
+    "104.155.0.0/16",
+    "104.154.0.0/15",
+    "146.148.0.0/17",
+    "146.148.128.0/17",
+    "104.196.128.0/18",
+    "34.86.0.0/15",
+    "34.100.0.0/16",
+    "34.102.0.0/15",
+    "34.104.0.0/14"
+  ]
 
-  @type event :: map()
-  @type parse_error :: :invalid_signature | :empty_payload | :invalid_json | :payload_too_large
+  import Bitwise, only: [band: 2, bsl: 2, bsr: 2]
 
-  # ── Public API ──────────────────────────────────────────────────────────
+  # ── Public API ────────────────────────────────────────────────────────────
 
   @doc """
-  Parses and verifies a GoCardlessClient webhook request body.
+  Parses and verifies a webhook payload.
 
-  Returns `{:ok, [event]}` or `{:error, reason}`.
+  Returns `{:ok, [event]}` on success, or `{:error, reason}` on failure.
 
-  - `body`      — raw request body binary
-  - `signature` — value of the `Webhook-Signature` HTTP header
-  - `secret`    — your endpoint's webhook secret from the GoCardlessClient dashboard
-
-  ## Example
-
-      body = conn |> Map.get(:body_params) |> Jason.encode!()
-      sig  = Plug.Conn.get_req_header(conn, "webhook-signature") |> List.first()
-
-      {:ok, events} = GoCardlessClient.Webhooks.parse(body, sig, "your_secret")
+  Possible errors:
+  - `:empty_payload` — body is nil or empty string
+  - `:payload_too_large` — body exceeds 10MB
+  - `:invalid_signature` — signature does not match
+  - `:invalid_json` — body is not valid JSON
   """
-  @spec parse(binary() | nil, String.t(), String.t()) ::
-          {:ok, [event()]} | {:error, parse_error()}
-  def parse(nil, _signature, _secret), do: {:error, :empty_payload}
-  def parse("", _signature, _secret), do: {:error, :empty_payload}
-
-  def parse(body, signature, secret) when is_binary(body) and byte_size(body) > 0 do
-    with :ok <- verify_signature(body, signature, secret) do
+  @spec parse(String.t() | nil, String.t() | nil, String.t()) ::
+          {:ok, [map()]} | {:error, atom()}
+  def parse(body, signature, secret) do
+    with :ok <- validate_body(body),
+         :ok <- verify(body, signature, secret) do
       decode_events(body)
     end
   end
 
   @doc """
-  Verifies only the HMAC-SHA256 signature without parsing the payload.
+  Verifies a webhook signature using HMAC-SHA256.
 
   Returns `:ok` or `{:error, :invalid_signature}`.
+  Uses constant-time comparison to prevent timing attacks.
   """
-  @spec verify(binary(), String.t(), String.t()) :: :ok | {:error, :invalid_signature}
-  def verify(body, signature, secret) do
-    verify_signature(body, signature, secret)
+  @spec verify(String.t(), String.t() | nil, String.t()) :: :ok | {:error, :invalid_signature}
+  def verify(body, signature, secret) when is_binary(body) and is_binary(signature) do
+    expected = :crypto.mac(:hmac, :sha256, secret, body) |> Base.encode16(case: :lower)
+
+    if Plug.Crypto.secure_compare(expected, String.downcase(signature)) do
+      :ok
+    else
+      {:error, :invalid_signature}
+    end
   end
 
+  def verify(_, _, _), do: {:error, :invalid_signature}
+
   @doc """
-  Generates a new cryptographically random idempotency key (32 hex chars).
+  Returns `true` if the IP address is within GoCardless's known outbound ranges.
 
-  ## Example
+  Use as an additional (not primary) security check. Signature verification
+  with `verify/3` should always be your primary security measure.
+  """
+  @spec gocardless_ip?(String.t()) :: boolean()
+  def gocardless_ip?(ip) when is_binary(ip) do
+    case :inet.parse_address(String.to_charlist(ip)) do
+      {:ok, addr} -> Enum.any?(@gc_cidrs, &ip_in_cidr?(addr, &1))
+      {:error, _} -> false
+    end
+  end
 
-      key = GoCardlessClient.Webhooks.idempotency_key()
-      # => "4a8f3c2b1d9e7f6a..."
+  def gocardless_ip?(_), do: false
+
+  @doc """
+  Generates a cryptographically random idempotency key.
+
+  Returns a 32-character lowercase hex string (128 bits of entropy).
+  Use this when creating payments, billing requests, or any write operation.
+
+      opts = [idempotency_key: GoCardlessClient.Webhooks.idempotency_key()]
   """
   @spec idempotency_key() :: String.t()
   def idempotency_key do
     :crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower)
   end
 
-  # ── Event type helpers ──────────────────────────────────────────────────
+  # ── Event type predicates ─────────────────────────────────────────────────
 
-  @doc "Returns `true` if the event resource_type is \"payments\"."
-  @spec payment_event?(event()) :: boolean()
+  @doc "Returns `true` if the event is for a payment resource."
+  @spec payment_event?(map()) :: boolean()
   def payment_event?(%{"resource_type" => "payments"}), do: true
   def payment_event?(_), do: false
 
-  @doc "Returns `true` if the event resource_type is \"mandates\"."
-  @spec mandate_event?(event()) :: boolean()
+  @doc "Returns `true` if the event is for a mandate resource."
+  @spec mandate_event?(map()) :: boolean()
   def mandate_event?(%{"resource_type" => "mandates"}), do: true
   def mandate_event?(_), do: false
 
-  @doc "Returns `true` if the event resource_type is \"subscriptions\"."
-  @spec subscription_event?(event()) :: boolean()
+  @doc "Returns `true` if the event is for a subscription resource."
+  @spec subscription_event?(map()) :: boolean()
   def subscription_event?(%{"resource_type" => "subscriptions"}), do: true
   def subscription_event?(_), do: false
 
-  @doc "Returns `true` if the event resource_type is \"payouts\"."
-  @spec payout_event?(event()) :: boolean()
+  @doc "Returns `true` if the event is for a payout resource."
+  @spec payout_event?(map()) :: boolean()
   def payout_event?(%{"resource_type" => "payouts"}), do: true
   def payout_event?(_), do: false
 
-  @doc "Returns `true` if the event resource_type is \"refunds\"."
-  @spec refund_event?(event()) :: boolean()
+  @doc "Returns `true` if the event is for a refund resource."
+  @spec refund_event?(map()) :: boolean()
   def refund_event?(%{"resource_type" => "refunds"}), do: true
   def refund_event?(_), do: false
 
-  @doc "Returns `true` if the event resource_type is \"billing_requests\"."
-  @spec billing_request_event?(event()) :: boolean()
+  @doc "Returns `true` if the event is for a billing request resource."
+  @spec billing_request_event?(map()) :: boolean()
   def billing_request_event?(%{"resource_type" => "billing_requests"}), do: true
   def billing_request_event?(_), do: false
 
-  @doc "Returns `true` if the event action matches `action`."
-  @spec action?(event(), String.t()) :: boolean()
-  def action?(%{"action" => a}, action), do: a == action
-  def action?(_, _), do: false
+  @doc "Returns `true` if the event is for an instalment schedule resource."
+  @spec instalment_schedule_event?(map()) :: boolean()
+  def instalment_schedule_event?(%{"resource_type" => "instalment_schedules"}), do: true
+  def instalment_schedule_event?(_), do: false
 
-  # ── GoCardlessClient IP allowlist ──────────────────────────────────────────────
+  @doc "Returns `true` if the event is for an outbound payment resource."
+  @spec outbound_payment_event?(map()) :: boolean()
+  def outbound_payment_event?(%{"resource_type" => "outbound_payments"}), do: true
+  def outbound_payment_event?(_), do: false
+
+  @doc "Returns `true` if the event is for a creditor resource."
+  @spec creditor_event?(map()) :: boolean()
+  def creditor_event?(%{"resource_type" => "creditors"}), do: true
+  def creditor_event?(_), do: false
+
+  @doc "Returns `true` if the event is for a customer resource."
+  @spec customer_event?(map()) :: boolean()
+  def customer_event?(%{"resource_type" => "customers"}), do: true
+  def customer_event?(_), do: false
+
+  @doc "Returns `true` if the event is for an export resource."
+  @spec export_event?(map()) :: boolean()
+  def export_event?(%{"resource_type" => "exports"}), do: true
+  def export_event?(_), do: false
+
+  @doc "Returns `true` if the event is for a payment account transaction resource."
+  @spec payment_account_transaction_event?(map()) :: boolean()
+  def payment_account_transaction_event?(%{"resource_type" => "payment_account_transactions"}),
+    do: true
+  def payment_account_transaction_event?(_), do: false
+
+  @doc "Returns `true` if the event is for a scheme identifier resource."
+  @spec scheme_identifier_event?(map()) :: boolean()
+  def scheme_identifier_event?(%{"resource_type" => "scheme_identifiers"}), do: true
+  def scheme_identifier_event?(_), do: false
 
   @doc """
-  Returns `true` if `ip` is within the GoCardlessClient webhook IP allowlist.
+  Returns `true` if the event has the given action string.
 
-  Use as a defence-in-depth layer alongside signature verification.
-  See https://developer.gocardless.com/api-reference/#overview-approved-ip-addresses
-  for the current list.
+      iex> GoCardlessClient.Webhooks.action?(%{"action" => "paid_out"}, "paid_out")
+      true
   """
-  @spec gocardless_ip?(String.t()) :: boolean()
-  def gocardless_ip?(ip) when is_binary(ip) do
-    case :inet.parse_address(String.to_charlist(ip)) do
-      {:ok, addr} -> Enum.any?(cidrs(), &ip_in_cidr?(addr, &1))
-      {:error, _} -> false
+  @spec action?(map(), String.t()) :: boolean()
+  def action?(%{"action" => action}, expected), do: action == expected
+  def action?(_, _), do: false
+
+  # ── Private helpers ───────────────────────────────────────────────────────
+
+  defp validate_body(nil), do: {:error, :empty_payload}
+  defp validate_body(""), do: {:error, :empty_payload}
+
+  defp validate_body(body) when is_binary(body) do
+    if byte_size(body) > @max_payload_bytes do
+      {:error, :payload_too_large}
+    else
+      :ok
     end
-  end
-
-  # ── Private ─────────────────────────────────────────────────────────────
-
-  # All verify_signature/3 clauses grouped together as required by Elixir.
-  defp verify_signature(_body, sig, _secret) when not is_binary(sig) do
-    {:error, :invalid_signature}
-  end
-
-  defp verify_signature(body, signature, secret) do
-    expected =
-      :crypto.mac(:hmac, :sha256, secret, body)
-      |> Base.encode16(case: :lower)
-
-    # Constant-time comparison prevents timing side-channel attacks.
-    if secure_compare(expected, signature), do: :ok, else: {:error, :invalid_signature}
-  end
-
-  # Constant-time binary comparison using Bitwise XOR accumulation.
-  defp secure_compare(a, b) when byte_size(a) == byte_size(b) do
-    a_bytes = :binary.bin_to_list(a)
-    b_bytes = :binary.bin_to_list(b)
-
-    diff =
-      Enum.zip(a_bytes, b_bytes)
-      |> Enum.reduce(0, fn {x, y}, acc -> acc ||| bxor(x, y) end)
-
-    diff == 0
-  end
-
-  defp secure_compare(_a, _b), do: false
-
-  defp decode_events(body) when byte_size(body) > @max_payload_bytes do
-    {:error, :payload_too_large}
   end
 
   defp decode_events(body) do
     case Jason.decode(body) do
       {:ok, %{"events" => events}} when is_list(events) -> {:ok, events}
-      {:ok, _} -> {:error, :invalid_json}
+      {:ok, _} -> {:ok, []}
       {:error, _} -> {:error, :invalid_json}
     end
   end
 
-  # GoCardlessClient webhook IP CIDRs.
-  # Source: https://developer.gocardless.com/api-reference/#overview-approved-ip-addresses
-  @cidrs [
-    {{35, 192, 0, 0}, 14},
-    {{35, 196, 0, 0}, 15},
-    {{35, 198, 0, 0}, 16},
-    {{35, 199, 0, 0}, 16},
-    {{35, 200, 0, 0}, 13},
-    {{35, 208, 0, 0}, 12},
-    {{34, 95, 0, 0}, 17},
-    {{34, 101, 0, 0}, 16},
-    {{34, 106, 0, 0}, 16},
-    {{34, 110, 0, 0}, 15}
-  ]
+  defp ip_in_cidr?(addr, cidr) do
+    [network_str, prefix_len_str] = String.split(cidr, "/")
+    prefix_len = String.to_integer(prefix_len_str)
+    {:ok, network} = :inet.parse_address(String.to_charlist(network_str))
 
-  defp cidrs, do: @cidrs
-
-  defp ip_in_cidr?({a, b, c, d} = _addr, {net_tuple, prefix_len}) do
-    ip_int = ip_tuple_to_int({a, b, c, d})
-    net_int = ip_tuple_to_int(net_tuple)
-    mask = compute_mask(prefix_len)
-    band(ip_int, mask) == band(net_int, mask)
+    mask_bits = ones_mask(prefix_len)
+    band(ip_to_int(addr), mask_bits) == band(ip_to_int(network), mask_bits)
   end
 
-  defp ip_in_cidr?(_addr, _cidr), do: false
+  defp ip_to_int({a, b, c, d}), do: a * 16_777_216 + b * 65_536 + c * 256 + d
+  defp ones_mask(n), do: bsl(1, 32) - bsr(1, n - 32)
 
-  defp ip_tuple_to_int({a, b, c, d}) do
-    a * 16_777_216 + b * 65_536 + c * 256 + d
-  end
-
-  defp compute_mask(prefix_len) do
-    band(bsl(0xFFFFFFFF, 32 - prefix_len), 0xFFFFFFFF)
-  end
 end
