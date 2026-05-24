@@ -1,8 +1,23 @@
 defmodule GoCardlessClient.Resources.Webhooks do
   @moduledoc """
-  GoCardlessClient Webhooks API.
+  GoCardless Webhooks API.
 
-  See https://developer.gocardless.com/api-reference/#webhooks for full documentation.
+  Provides access to the webhook delivery log — the record of every webhook
+  GoCardless has attempted to deliver to your endpoint. Use this to inspect
+  failed deliveries and retry them.
+
+  For webhook signature verification and event parsing, use the
+  `GoCardlessClient.Webhooks` module instead.
+
+  ## Example — retry a failed delivery
+
+      {:ok, %{items: webhooks}} = GoCardlessClient.Resources.Webhooks.list(client, %{
+        successful: false
+      })
+
+      Enum.each(webhooks, fn wh ->
+        {:ok, _} = GoCardlessClient.Resources.Webhooks.retry(client, wh["id"])
+      end)
   """
 
   alias GoCardlessClient.{Client, Paginator, Resource}
@@ -10,28 +25,18 @@ defmodule GoCardlessClient.Resources.Webhooks do
   @resource_key "webhooks"
   @base_path "/webhooks"
 
-  @doc "Creates a new webhooks resource."
-  @spec create(Client.t(), map(), keyword()) ::
-          {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
-  def create(%Client{} = client, params, opts \\ []) do
-    Resource.post(client, @base_path, @resource_key, params, opts)
-  end
-
-  @doc "Retrieves a single webhooks by ID."
+  @doc "Retrieves a single webhook delivery record by ID."
   @spec get(Client.t(), String.t(), keyword()) ::
           {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
   def get(%Client{} = client, id, opts \\ []) do
     Resource.get(client, "#{@base_path}/#{id}", @resource_key, opts)
   end
 
-  @doc "Updates a webhooks."
-  @spec update(Client.t(), String.t(), map(), keyword()) ::
-          {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
-  def update(%Client{} = client, id, params, opts \\ []) do
-    Resource.put(client, "#{@base_path}/#{id}", @resource_key, params, opts)
-  end
+  @doc """
+  Returns a page of webhook delivery records.
 
-  @doc "Lists webhooks with optional filter params."
+  Filter by `:created_at[gte]`, `:created_at[lte]`, `:is_test`.
+  """
   @spec list(Client.t(), map(), keyword()) ::
           {:ok, %{items: [map()], meta: map()}}
           | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
@@ -39,20 +44,20 @@ defmodule GoCardlessClient.Resources.Webhooks do
     Resource.list(client, @base_path, @resource_key, params, opts)
   end
 
-  @doc "Returns a lazy `Stream` over all pages of webhooks."
+  @doc "Returns a lazy `Stream` over all pages of webhook delivery records."
   @spec stream(Client.t(), map(), keyword()) :: Enumerable.t()
   def stream(%Client{} = client, params \\ %{}, opts \\ []) do
     Paginator.stream(client, @base_path, params, @resource_key, opts)
   end
 
-  @doc "Eagerly collects all webhooks into a list across all pages."
+  @doc "Eagerly collects all webhook delivery records into a list."
   @spec collect_all(Client.t(), map(), keyword()) ::
           {:ok, [map()]} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
   def collect_all(%Client{} = client, params \\ %{}, opts \\ []) do
     Paginator.collect(client, @base_path, params, @resource_key, opts)
   end
 
-  @doc "Retries a failed webhook delivery."
+  @doc "Retries delivery of a webhook to your endpoint."
   @spec retry(Client.t(), String.t(), map(), keyword()) ::
           {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
   def retry(%Client{} = client, id, params \\ %{}, opts \\ []) do
