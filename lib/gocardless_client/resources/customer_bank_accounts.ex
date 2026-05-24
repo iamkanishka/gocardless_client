@@ -39,7 +39,7 @@ defmodule GoCardlessClient.Resources.CustomerBankAccounts do
   @spec update(Client.t(), String.t(), map(), keyword()) ::
           {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
   def update(%Client{} = client, id, params, opts \\ []) do
-    Resource.put(client, "#{@base_path}/#{id}", @resource_key, params, opts)
+    Resource.update(client, "#{@base_path}/#{id}", @resource_key, params, opts)
   end
 
   @doc "Returns a page of customer bank accounts with optional filters."
