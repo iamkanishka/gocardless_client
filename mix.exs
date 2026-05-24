@@ -75,7 +75,7 @@ defmodule GoCardlessClient.MixProject do
       main: "GoCardlessClient",
       source_ref: "v#{@version}",
       source_url: @source_url,
-      extras: ["README.md", "CHANGELOG.md"],
+      extras: ["README.md", "CHANGELOG.md", "LICENSE"],
       groups_for_modules: [
         Core: [GoCardlessClient, GoCardlessClient.Client, GoCardlessClient.Config],
         "HTTP Layer": [GoCardlessClient.HTTP.Client, GoCardlessClient.HTTP.RateLimiter],
