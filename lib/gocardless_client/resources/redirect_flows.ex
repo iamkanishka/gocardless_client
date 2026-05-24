@@ -1,60 +1,51 @@
 defmodule GoCardlessClient.Resources.RedirectFlows do
   @moduledoc """
-  GoCardlessClient Redirect Flows API.
+  GoCardless Redirect Flows API (Legacy).
 
-  Redirect Flows provide a GoCardlessClient-hosted mandate setup page.
-  No payment page restrictions apply.
+  **This is a legacy API.** New integrations should use
+  `GoCardlessClient.Resources.BillingRequestFlows` instead, which supports
+  Open Banking, fallback flows, and more flexible customisation.
+
+  Redirect Flows create a GoCardless-hosted page where a customer sets up a
+  Direct Debit mandate. After the customer completes the flow, you must call
+  `complete/3` with the original session token to create the mandate.
 
   ## Example
 
-      session_token = GoCardlessClient.new_idempotency_key()
-
       {:ok, flow} = GoCardlessClient.Resources.RedirectFlows.create(client, %{
         description: "Set up your Direct Debit",
-        session_token: session_token,
-        success_redirect_url: "https://example.com/mandate-confirmed",
-        scheme: "bacs",
-        prefilled_customer: %{
-          given_name: "Alice",
-          family_name: "Smith",
-          email: "alice@example.com",
-          country_code: "GB"
-        }
+        session_token: "unique-session-token",
+        success_redirect_url: "https://myapp.com/mandate-complete"
       })
 
       # Redirect customer to flow["redirect_url"]
 
-      # After customer completes and is redirected back:
+      # After redirect back:
       {:ok, completed} = GoCardlessClient.Resources.RedirectFlows.complete(
-        client, flow["id"], session_token
+        client,
+        flow["id"],
+        %{session_token: "unique-session-token"}
       )
-      mandate_id  = get_in(completed, ["links", "mandate"])
-      customer_id = get_in(completed, ["links", "customer"])
+
+      mandate_id = completed["links"]["mandate"]
   """
 
-  alias GoCardlessClient.{Client, Resource}
+  alias GoCardlessClient.{Client, Paginator, Resource}
 
   @resource_key "redirect_flows"
   @base_path "/redirect_flows"
 
   @doc """
-  Creates a Redirect Flow.
+  Creates a Redirect Flow and returns a hosted `redirect_url`.
 
-  Returns the flow including `redirect_url` — redirect the customer there
-  to complete mandate setup on the GoCardlessClient-hosted page.
+  ## Params
 
-  ## Required params
-
-  - `:description` — shown to the customer on the payment page
-  - `:session_token` — unique per session; matched during `complete/4`
-  - `:success_redirect_url` — where to send the customer after completion
-
-  ## Optional params
-
-  - `:scheme` — e.g. `"bacs"`, `"sepa_core"`, `"autogiro"`
-  - `:prefilled_customer` — pre-fill customer details to reduce friction
-  - `:prefilled_bank_account` — pre-fill bank account details
-  - `links.creditor` — creditor to use (required for some schemes)
+  - `:description` — shown on the GoCardless-hosted page (required)
+  - `:session_token` — unique token tying this session to your user (required)
+  - `:success_redirect_url` — where to redirect after completion (required)
+  - `:prefilled_customer` — map of customer details to pre-populate
+  - `:scheme` — Direct Debit scheme (optional)
+  - `links.creditor` — Creditor ID if managing multiple creditors (optional)
   """
   @spec create(Client.t(), map(), keyword()) ::
           {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
@@ -70,17 +61,37 @@ defmodule GoCardlessClient.Resources.RedirectFlows do
   end
 
   @doc """
-  Completes a Redirect Flow after the customer returns from the hosted page.
-
-  The `session_token` must match the one used when creating the flow.
-
-  On success, the returned map has `links.mandate` and `links.customer`
-  populated with the newly created resource IDs.
+  Lists redirect flows. Filter by `:created_at[gte]`, `:created_at[lte]`.
   """
-  @spec complete(Client.t(), String.t(), String.t(), keyword()) ::
-          {:ok, map()} | {:error, term()}
-  def complete(%Client{} = client, id, session_token, opts \\ []) do
-    params = %{"session_token" => session_token}
+  @spec list(Client.t(), map(), keyword()) ::
+          {:ok, %{items: [map()], meta: map()}}
+          | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
+  def list(%Client{} = client, params \\ %{}, opts \\ []) do
+    Resource.list(client, @base_path, @resource_key, params, opts)
+  end
+
+  @doc "Returns a lazy `Stream` over all pages of redirect flows."
+  @spec stream(Client.t(), map(), keyword()) :: Enumerable.t()
+  def stream(%Client{} = client, params \\ %{}, opts \\ []) do
+    Paginator.stream(client, @base_path, params, @resource_key, opts)
+  end
+
+  @doc "Eagerly collects all redirect flows into a list."
+  @spec collect_all(Client.t(), map(), keyword()) ::
+          {:ok, [map()]} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
+  def collect_all(%Client{} = client, params \\ %{}, opts \\ []) do
+    Paginator.collect(client, @base_path, params, @resource_key, opts)
+  end
+
+  @doc """
+  Completes a Redirect Flow after the customer has returned from GoCardless.
+
+  Must be called with the same `:session_token` used at creation.
+  Returns the created mandate and customer IDs in `links`.
+  """
+  @spec complete(Client.t(), String.t(), map(), keyword()) ::
+          {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
+  def complete(%Client{} = client, id, params, opts \\ []) do
     Resource.action(client, "#{@base_path}/#{id}", "complete", @resource_key, params, opts)
   end
 end
