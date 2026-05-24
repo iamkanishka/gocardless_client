@@ -1,8 +1,13 @@
 defmodule GoCardlessClient.Resources.Payouts do
   @moduledoc """
-  GoCardlessClient Payouts API.
+  GoCardless Payouts API.
 
-  Payouts are batches of money sent to creditors from payments collected.
+  Payouts are batched settlements from GoCardless to your creditor bank account.
+  GoCardless aggregates collected payments and sends periodic payouts.
+
+  ## Payout states
+
+  `pending` → `paid`
 
   ## Example
 
@@ -17,13 +22,6 @@ defmodule GoCardlessClient.Resources.Payouts do
   @resource_key "payouts"
   @base_path "/payouts"
 
-  @doc "Creates a new payouts resource."
-  @spec create(Client.t(), map(), keyword()) ::
-          {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
-  def create(%Client{} = client, params, opts \\ []) do
-    Resource.post(client, @base_path, @resource_key, params, opts)
-  end
-
   @doc "Retrieves a single payout by ID."
   @spec get(Client.t(), String.t(), keyword()) ::
           {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
@@ -31,14 +29,12 @@ defmodule GoCardlessClient.Resources.Payouts do
     Resource.get(client, "#{@base_path}/#{id}", @resource_key, opts)
   end
 
-  @doc "Updates a payout's metadata."
-  @spec update(Client.t(), String.t(), map(), keyword()) ::
-          {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
-  def update(%Client{} = client, id, params, opts \\ []) do
-    Resource.put(client, "#{@base_path}/#{id}", @resource_key, params, opts)
-  end
+  @doc """
+  Returns a page of payouts.
 
-  @doc "Returns a page of payouts with optional filters (`:status`, `:currency`, `:paid_at[gte]`)."
+  Filter by `:creditor`, `:creditor_bank_account`, `:currency`, `:status`,
+  `:created_at[gte]`, `:created_at[lte]`, `:payout_type` (`"merchant"` or `"partner"`).
+  """
   @spec list(Client.t(), map(), keyword()) ::
           {:ok, %{items: [map()], meta: map()}}
           | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
@@ -57,5 +53,12 @@ defmodule GoCardlessClient.Resources.Payouts do
           {:ok, [map()]} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
   def collect_all(%Client{} = client, params \\ %{}, opts \\ []) do
     Paginator.collect(client, @base_path, params, @resource_key, opts)
+  end
+
+  @doc "Updates a payout's metadata. Only `:metadata` can be changed."
+  @spec update(Client.t(), String.t(), map(), keyword()) ::
+          {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
+  def update(%Client{} = client, id, params, opts \\ []) do
+    Resource.update(client, "#{@base_path}/#{id}", @resource_key, params, opts)
   end
 end
