@@ -61,9 +61,17 @@ defmodule GoCardlessClient.Resources.CustomersTest do
       Bypass.expect_once(bypass, "GET", "/customers/NOTFOUND", fn conn ->
         conn
         |> Conn.put_resp_content_type("application/json")
-        |> Conn.send_resp(404, Jason.encode!(%{
-          "error" => %{"type" => "invalid_api_usage", "code" => 404, "message" => "Not found", "errors" => []}
-        }))
+        |> Conn.send_resp(
+          404,
+          Jason.encode!(%{
+            "error" => %{
+              "type" => "invalid_api_usage",
+              "code" => 404,
+              "message" => "Not found",
+              "errors" => []
+            }
+          })
+        )
       end)
 
       assert {:error, error} = Customers.get(client, "NOTFOUND")
@@ -78,10 +86,13 @@ defmodule GoCardlessClient.Resources.CustomersTest do
       Bypass.expect_once(bypass, "GET", "/customers", fn conn ->
         conn
         |> Conn.put_resp_content_type("application/json")
-        |> Conn.send_resp(200, Jason.encode!(%{
-          "customers" => customers,
-          "meta" => %{"cursors" => %{"before" => nil, "after" => nil}}
-        }))
+        |> Conn.send_resp(
+          200,
+          Jason.encode!(%{
+            "customers" => customers,
+            "meta" => %{"cursors" => %{"before" => nil, "after" => nil}}
+          })
+        )
       end)
 
       assert {:ok, %{items: items, meta: meta}} = Customers.list(client)
@@ -96,10 +107,13 @@ defmodule GoCardlessClient.Resources.CustomersTest do
 
         conn
         |> Conn.put_resp_content_type("application/json")
-        |> Conn.send_resp(200, Jason.encode!(%{
-          "customers" => [],
-          "meta" => %{"cursors" => %{"before" => nil, "after" => nil}}
-        }))
+        |> Conn.send_resp(
+          200,
+          Jason.encode!(%{
+            "customers" => [],
+            "meta" => %{"cursors" => %{"before" => nil, "after" => nil}}
+          })
+        )
       end)
 
       assert {:ok, _} = Customers.list(client, %{email: "alice@example.com"})

@@ -18,10 +18,13 @@ defmodule GoCardlessClient.PaginatorTest do
       Bypass.expect_once(bypass, "GET", "/payments", fn conn ->
         conn
         |> Conn.put_resp_content_type("application/json")
-        |> Conn.send_resp(200, Jason.encode!(%{
-          "payments" => payments,
-          "meta" => %{"cursors" => %{"before" => nil, "after" => nil}}
-        }))
+        |> Conn.send_resp(
+          200,
+          Jason.encode!(%{
+            "payments" => payments,
+            "meta" => %{"cursors" => %{"before" => nil, "after" => nil}}
+          })
+        )
       end)
 
       assert {:ok, items} = Paginator.collect(client, "/payments", %{}, "payments")
@@ -48,10 +51,13 @@ defmodule GoCardlessClient.PaginatorTest do
 
         conn
         |> Conn.put_resp_content_type("application/json")
-        |> Conn.send_resp(200, Jason.encode!(%{
-          "payments" => items,
-          "meta" => %{"cursors" => %{"before" => nil, "after" => after_cursor}}
-        }))
+        |> Conn.send_resp(
+          200,
+          Jason.encode!(%{
+            "payments" => items,
+            "meta" => %{"cursors" => %{"before" => nil, "after" => after_cursor}}
+          })
+        )
       end)
 
       assert {:ok, all_items} = Paginator.collect(client, "/payments", %{}, "payments")
@@ -65,10 +71,17 @@ defmodule GoCardlessClient.PaginatorTest do
       Bypass.expect_once(bypass, "GET", "/payments", fn conn ->
         conn
         |> Conn.put_resp_content_type("application/json")
-        |> Conn.send_resp(401, Jason.encode!(%{
-          "error" => %{"type" => "invalid_api_usage", "code" => 401,
-                       "message" => "Unauthorized", "errors" => []}
-        }))
+        |> Conn.send_resp(
+          401,
+          Jason.encode!(%{
+            "error" => %{
+              "type" => "invalid_api_usage",
+              "code" => 401,
+              "message" => "Unauthorized",
+              "errors" => []
+            }
+          })
+        )
       end)
 
       assert {:error, error} = Paginator.collect(client, "/payments", %{}, "payments")

@@ -11,10 +11,13 @@ defmodule GoCardlessClient.Resources.PayoutsTest do
       Bypass.expect_once(bypass, "GET", "/payouts", fn conn ->
         conn
         |> Conn.put_resp_content_type("application/json")
-        |> Conn.send_resp(200, Jason.encode!(%{
-          "payouts" => payouts,
-          "meta" => %{"cursors" => %{"before" => nil, "after" => nil}}
-        }))
+        |> Conn.send_resp(
+          200,
+          Jason.encode!(%{
+            "payouts" => payouts,
+            "meta" => %{"cursors" => %{"before" => nil, "after" => nil}}
+          })
+        )
       end)
 
       assert {:ok, %{items: items}} = Payouts.list(client, %{status: "paid"})
@@ -49,10 +52,13 @@ defmodule GoCardlessClient.Resources.PayoutsTest do
 
         conn
         |> Conn.put_resp_content_type("application/json")
-        |> Conn.send_resp(200, Jason.encode!(%{
-          "payout_items" => items,
-          "meta" => %{"cursors" => %{"before" => nil, "after" => nil}}
-        }))
+        |> Conn.send_resp(
+          200,
+          Jason.encode!(%{
+            "payout_items" => items,
+            "meta" => %{"cursors" => %{"before" => nil, "after" => nil}}
+          })
+        )
       end)
 
       assert {:ok, %{items: result_items}} = PayoutItems.list(client, %{payout: "PO123"})

@@ -19,16 +19,17 @@ defmodule GoCardlessClient.Resources.InstalmentSchedulesTest do
         |> Conn.send_resp(201, Jason.encode!(%{"instalment_schedules" => schedule}))
       end)
 
-      assert {:ok, _} = InstalmentSchedules.create_with_dates(client, %{
-        name: "3-month plan",
-        currency: "GBP",
-        instalments: [
-          %{charge_date: "2025-02-01", amount: 5000},
-          %{charge_date: "2025-03-01", amount: 5000},
-          %{charge_date: "2025-04-01", amount: 5000}
-        ],
-        links: %{mandate: "MD123"}
-      })
+      assert {:ok, _} =
+               InstalmentSchedules.create_with_dates(client, %{
+                 name: "3-month plan",
+                 currency: "GBP",
+                 instalments: [
+                   %{charge_date: "2025-02-01", amount: 5000},
+                   %{charge_date: "2025-03-01", amount: 5000},
+                   %{charge_date: "2025-04-01", amount: 5000}
+                 ],
+                 links: %{mandate: "MD123"}
+               })
     end
   end
 
@@ -46,16 +47,17 @@ defmodule GoCardlessClient.Resources.InstalmentSchedulesTest do
         |> Conn.send_resp(201, Jason.encode!(%{"instalment_schedules" => schedule}))
       end)
 
-      assert {:ok, _} = InstalmentSchedules.create_with_schedule(client, %{
-        name: "6-month plan",
-        currency: "GBP",
-        amount: 3000,
-        start_date: "2025-02-01",
-        count: 6,
-        interval_unit: "monthly",
-        interval: 1,
-        links: %{mandate: "MD123"}
-      })
+      assert {:ok, _} =
+               InstalmentSchedules.create_with_schedule(client, %{
+                 name: "6-month plan",
+                 currency: "GBP",
+                 amount: 3000,
+                 start_date: "2025-02-01",
+                 count: 6,
+                 interval_unit: "monthly",
+                 interval: 1,
+                 links: %{mandate: "MD123"}
+               })
     end
   end
 

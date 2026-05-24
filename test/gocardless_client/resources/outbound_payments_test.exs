@@ -17,10 +17,13 @@ defmodule GoCardlessClient.Resources.OutboundPaymentsTest do
         |> Conn.send_resp(201, Jason.encode!(%{"outbound_payments" => payment}))
       end)
 
-      assert {:ok, result} = OutboundPayments.create(client, %{
-        amount: 5000, currency: "GBP",
-        links: %{payment_account: "PA123"}
-      })
+      assert {:ok, result} =
+               OutboundPayments.create(client, %{
+                 amount: 5000,
+                 currency: "GBP",
+                 links: %{payment_account: "PA123"}
+               })
+
       assert result["amount"] == 5000
     end
   end
@@ -39,10 +42,12 @@ defmodule GoCardlessClient.Resources.OutboundPaymentsTest do
         |> Conn.send_resp(201, Jason.encode!(%{"outbound_payments" => payment}))
       end)
 
-      assert {:ok, _} = OutboundPayments.withdrawal(client, %{
-        amount: 100_000, currency: "GBP",
-        links: %{payment_account: "PA123", creditor_bank_account: "BA456"}
-      })
+      assert {:ok, _} =
+               OutboundPayments.withdrawal(client, %{
+                 amount: 100_000,
+                 currency: "GBP",
+                 links: %{payment_account: "PA123", creditor_bank_account: "BA456"}
+               })
     end
   end
 

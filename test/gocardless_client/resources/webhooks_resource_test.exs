@@ -11,10 +11,13 @@ defmodule GoCardlessClient.Resources.WebhooksTest do
       Bypass.expect_once(bypass, "GET", "/webhooks", fn conn ->
         conn
         |> Conn.put_resp_content_type("application/json")
-        |> Conn.send_resp(200, Jason.encode!(%{
-          "webhooks" => records,
-          "meta" => %{"cursors" => %{"before" => nil, "after" => nil}}
-        }))
+        |> Conn.send_resp(
+          200,
+          Jason.encode!(%{
+            "webhooks" => records,
+            "meta" => %{"cursors" => %{"before" => nil, "after" => nil}}
+          })
+        )
       end)
 
       assert {:ok, %{items: items}} = Webhooks.list(client)

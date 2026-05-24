@@ -6,31 +6,43 @@ defmodule GoCardlessClient.Resources.ScenarioSimulatorsTest do
 
   describe "run/4" do
     test "POSTs to correct action path", %{client: client, bypass: bypass} do
-      Bypass.expect_once(bypass, "POST", "/scenario_simulators/payment_paid_out/actions/run", fn conn ->
-        {:ok, body, conn} = Conn.read_body(conn)
-        parsed = Jason.decode!(body)
-        assert parsed["scenario_simulators"]["links"]["payment"] == "PM123"
+      Bypass.expect_once(
+        bypass,
+        "POST",
+        "/scenario_simulators/payment_paid_out/actions/run",
+        fn conn ->
+          {:ok, body, conn} = Conn.read_body(conn)
+          parsed = Jason.decode!(body)
+          assert parsed["scenario_simulators"]["links"]["payment"] == "PM123"
 
-        conn
-        |> Conn.put_resp_content_type("application/json")
-        |> Conn.send_resp(200, Jason.encode!(%{}))
-      end)
+          conn
+          |> Conn.put_resp_content_type("application/json")
+          |> Conn.send_resp(200, Jason.encode!(%{}))
+        end
+      )
 
-      assert {:ok, _} = ScenarioSimulators.run(client, "payment_paid_out", %{
-        links: %{payment: "PM123"}
-      })
+      assert {:ok, _} =
+               ScenarioSimulators.run(client, "payment_paid_out", %{
+                 links: %{payment: "PM123"}
+               })
     end
 
     test "works for mandate scenarios", %{client: client, bypass: bypass} do
-      Bypass.expect_once(bypass, "POST", "/scenario_simulators/mandate_failed/actions/run", fn conn ->
-        conn
-        |> Conn.put_resp_content_type("application/json")
-        |> Conn.send_resp(200, Jason.encode!(%{}))
-      end)
+      Bypass.expect_once(
+        bypass,
+        "POST",
+        "/scenario_simulators/mandate_failed/actions/run",
+        fn conn ->
+          conn
+          |> Conn.put_resp_content_type("application/json")
+          |> Conn.send_resp(200, Jason.encode!(%{}))
+        end
+      )
 
-      assert {:ok, _} = ScenarioSimulators.run(client, "mandate_failed", %{
-        links: %{mandate: "MD456"}
-      })
+      assert {:ok, _} =
+               ScenarioSimulators.run(client, "mandate_failed", %{
+                 links: %{mandate: "MD456"}
+               })
     end
 
     test "raises ArgumentError for unknown scenario type", %{client: client} do

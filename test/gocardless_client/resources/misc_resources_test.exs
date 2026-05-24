@@ -19,11 +19,13 @@ defmodule GoCardlessClient.Resources.MiscResourcesTest do
         |> Conn.send_resp(200, Jason.encode!(%{"bank_details_lookups" => result}))
       end)
 
-      assert {:ok, details} = BankDetailsLookups.lookup(client, %{
-        account_number: "55779911",
-        branch_code: "200000",
-        country_code: "GB"
-      })
+      assert {:ok, details} =
+               BankDetailsLookups.lookup(client, %{
+                 account_number: "55779911",
+                 branch_code: "200000",
+                 country_code: "GB"
+               })
+
       assert details["bank_name"] == "BARCLAYS BANK PLC"
       assert details["available_debit_schemes"] == ["bacs"]
     end
@@ -72,10 +74,13 @@ defmodule GoCardlessClient.Resources.MiscResourcesTest do
 
         conn
         |> Conn.put_resp_content_type("application/json")
-        |> Conn.send_resp(200, Jason.encode!(%{
-          "institutions" => institutions,
-          "meta" => %{"cursors" => %{"before" => nil, "after" => nil}}
-        }))
+        |> Conn.send_resp(
+          200,
+          Jason.encode!(%{
+            "institutions" => institutions,
+            "meta" => %{"cursors" => %{"before" => nil, "after" => nil}}
+          })
+        )
       end)
 
       assert {:ok, %{items: items}} = Institutions.list(client, %{country_code: "GB"})
@@ -90,14 +95,18 @@ defmodule GoCardlessClient.Resources.MiscResourcesTest do
       Bypass.expect_once(bypass, "GET", "/billing_requests/BRQ123/institutions", fn conn ->
         conn
         |> Conn.put_resp_content_type("application/json")
-        |> Conn.send_resp(200, Jason.encode!(%{
-          "institutions" => institutions,
-          "meta" => %{"cursors" => %{"before" => nil, "after" => nil}}
-        }))
+        |> Conn.send_resp(
+          200,
+          Jason.encode!(%{
+            "institutions" => institutions,
+            "meta" => %{"cursors" => %{"before" => nil, "after" => nil}}
+          })
+        )
       end)
 
       assert {:ok, %{items: items}} =
                Institutions.list_for_billing_request(client, "BRQ123")
+
       assert length(items) == 2
     end
   end
@@ -109,10 +118,13 @@ defmodule GoCardlessClient.Resources.MiscResourcesTest do
       Bypass.expect_once(bypass, "GET", "/balances", fn conn ->
         conn
         |> Conn.put_resp_content_type("application/json")
-        |> Conn.send_resp(200, Jason.encode!(%{
-          "balances" => balances,
-          "meta" => %{"cursors" => %{"before" => nil, "after" => nil}}
-        }))
+        |> Conn.send_resp(
+          200,
+          Jason.encode!(%{
+            "balances" => balances,
+            "meta" => %{"cursors" => %{"before" => nil, "after" => nil}}
+          })
+        )
       end)
 
       assert {:ok, %{items: items}} = Balances.list(client)

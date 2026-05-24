@@ -101,7 +101,8 @@ defmodule GoCardlessClient.Resources.ScenarioSimulators do
   Raises `ArgumentError` if an unknown scenario type is provided.
   """
   @spec run(Client.t(), String.t(), map(), keyword()) ::
-          {:ok, map() | nil} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
+          {:ok, map() | nil}
+          | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
   def run(%Client{} = client, scenario_type, params \\ %{}, opts \\ []) do
     unless scenario_type in @valid_scenarios do
       raise ArgumentError,

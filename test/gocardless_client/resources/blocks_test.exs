@@ -18,11 +18,13 @@ defmodule GoCardlessClient.Resources.BlocksTest do
         |> Conn.send_resp(201, Jason.encode!(%{"blocks" => block}))
       end)
 
-      assert {:ok, result} = Blocks.create(client, %{
-        block_type: "email",
-        reason_type: "fraud",
-        resource_reference: "fraudster@example.com"
-      })
+      assert {:ok, result} =
+               Blocks.create(client, %{
+                 block_type: "email",
+                 reason_type: "fraud",
+                 resource_reference: "fraudster@example.com"
+               })
+
       assert result["block_type"] == "email"
     end
   end
@@ -39,11 +41,12 @@ defmodule GoCardlessClient.Resources.BlocksTest do
         |> Conn.send_resp(200, Jason.encode!(%{"blocks" => %{}}))
       end)
 
-      assert {:ok, _} = Blocks.block_by_reference(client, %{
-        reference_type: "mandate",
-        reference_id: "MD123",
-        reason_type: "fraud"
-      })
+      assert {:ok, _} =
+               Blocks.block_by_reference(client, %{
+                 reference_type: "mandate",
+                 reference_id: "MD123",
+                 reason_type: "fraud"
+               })
     end
   end
 

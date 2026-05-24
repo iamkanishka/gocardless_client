@@ -197,6 +197,7 @@ defmodule GoCardlessClient.Webhooks do
   @spec payment_account_transaction_event?(map()) :: boolean()
   def payment_account_transaction_event?(%{"resource_type" => "payment_account_transactions"}),
     do: true
+
   def payment_account_transaction_event?(_), do: false
 
   @doc "Returns `true` if the event is for a scheme identifier resource."
@@ -246,5 +247,4 @@ defmodule GoCardlessClient.Webhooks do
 
   defp ip_to_int({a, b, c, d}), do: a * 16_777_216 + b * 65_536 + c * 256 + d
   defp ones_mask(n), do: bsl(1, 32) - bsr(1, n - 32)
-
 end

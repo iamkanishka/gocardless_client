@@ -17,9 +17,11 @@ defmodule GoCardlessClient.Resources.MandatesTest do
         |> Conn.send_resp(201, Jason.encode!(%{"mandates" => mandate}))
       end)
 
-      assert {:ok, result} = Mandates.create(client, %{
-        links: %{customer_bank_account: "BA123"}
-      })
+      assert {:ok, result} =
+               Mandates.create(client, %{
+                 links: %{customer_bank_account: "BA123"}
+               })
+
       assert result["status"] == "active"
     end
   end

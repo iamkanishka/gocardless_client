@@ -19,9 +19,13 @@ defmodule GoCardlessClient.Resources.PaymentsTest do
         |> Conn.send_resp(201, Jason.encode!(%{"payments" => payment}))
       end)
 
-      assert {:ok, result} = Payments.create(client, %{
-        amount: 1500, currency: "GBP", links: %{mandate: "MD123"}
-      })
+      assert {:ok, result} =
+               Payments.create(client, %{
+                 amount: 1500,
+                 currency: "GBP",
+                 links: %{mandate: "MD123"}
+               })
+
       assert result["amount"] == 1500
     end
   end
@@ -68,10 +72,13 @@ defmodule GoCardlessClient.Resources.PaymentsTest do
       Bypass.expect_once(bypass, "GET", "/payments", fn conn ->
         conn
         |> Conn.put_resp_content_type("application/json")
-        |> Conn.send_resp(200, Jason.encode!(%{
-          "payments" => payments,
-          "meta" => %{"cursors" => %{"before" => nil, "after" => "cursor_abc"}}
-        }))
+        |> Conn.send_resp(
+          200,
+          Jason.encode!(%{
+            "payments" => payments,
+            "meta" => %{"cursors" => %{"before" => nil, "after" => "cursor_abc"}}
+          })
+        )
       end)
 
       assert {:ok, %{items: items, meta: meta}} = Payments.list(client, %{mandate: "MD123"})

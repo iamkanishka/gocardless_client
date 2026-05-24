@@ -17,11 +17,13 @@ defmodule GoCardlessClient.Resources.RedirectFlowsTest do
         |> Conn.send_resp(201, Jason.encode!(%{"redirect_flows" => flow}))
       end)
 
-      assert {:ok, result} = RedirectFlows.create(client, %{
-        description: "Set up your Direct Debit",
-        session_token: "sess_123",
-        success_redirect_url: "https://myapp.com/done"
-      })
+      assert {:ok, result} =
+               RedirectFlows.create(client, %{
+                 description: "Set up your Direct Debit",
+                 session_token: "sess_123",
+                 success_redirect_url: "https://myapp.com/done"
+               })
+
       assert result["session_token"] == "sess_123"
     end
   end
@@ -51,10 +53,13 @@ defmodule GoCardlessClient.Resources.RedirectFlowsTest do
       Bypass.expect_once(bypass, "GET", "/redirect_flows", fn conn ->
         conn
         |> Conn.put_resp_content_type("application/json")
-        |> Conn.send_resp(200, Jason.encode!(%{
-          "redirect_flows" => flows,
-          "meta" => %{"cursors" => %{"before" => nil, "after" => nil}}
-        }))
+        |> Conn.send_resp(
+          200,
+          Jason.encode!(%{
+            "redirect_flows" => flows,
+            "meta" => %{"cursors" => %{"before" => nil, "after" => nil}}
+          })
+        )
       end)
 
       assert {:ok, %{items: items}} = RedirectFlows.list(client)

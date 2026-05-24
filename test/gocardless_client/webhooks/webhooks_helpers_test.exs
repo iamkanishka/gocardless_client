@@ -28,8 +28,8 @@ defmodule GoCardlessClient.WebhooksHelpersTest do
 
     test "payment_account_transaction_event?/1" do
       assert Webhooks.payment_account_transaction_event?(%{
-        "resource_type" => "payment_account_transactions"
-      })
+               "resource_type" => "payment_account_transactions"
+             })
     end
 
     test "scheme_identifier_event?/1" do

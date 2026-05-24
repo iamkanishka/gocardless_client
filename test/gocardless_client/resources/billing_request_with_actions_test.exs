@@ -19,19 +19,25 @@ defmodule GoCardlessClient.Resources.BillingRequestWithActionsTest do
         |> Conn.send_resp(201, Jason.encode!(%{"billing_requests" => br}))
       end)
 
-      assert {:ok, result} = BillingRequestWithActions.create(client, %{
-        mandate_request: %{currency: "GBP"},
-        actions: [
-          %{
-            type: "collect_customer_details",
-            collect_customer_details: %{
-              customer: %{given_name: "Alice", family_name: "Smith", email: "alice@example.com"}
-            }
-          },
-          %{type: "confirm_payer_details", confirm_payer_details: %{}},
-          %{type: "fulfil", fulfil: %{}}
-        ]
-      })
+      assert {:ok, result} =
+               BillingRequestWithActions.create(client, %{
+                 mandate_request: %{currency: "GBP"},
+                 actions: [
+                   %{
+                     type: "collect_customer_details",
+                     collect_customer_details: %{
+                       customer: %{
+                         given_name: "Alice",
+                         family_name: "Smith",
+                         email: "alice@example.com"
+                       }
+                     }
+                   },
+                   %{type: "confirm_payer_details", confirm_payer_details: %{}},
+                   %{type: "fulfil", fulfil: %{}}
+                 ]
+               })
+
       assert result["status"] == "fulfilled"
     end
   end

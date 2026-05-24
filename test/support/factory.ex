@@ -18,6 +18,7 @@ defmodule GoCardlessClient.Factory do
       "metadata" => %{},
       "links" => %{}
     }
+
     Map.merge(base, attrs)
   end
 
@@ -34,6 +35,7 @@ defmodule GoCardlessClient.Factory do
       "metadata" => %{},
       "links" => %{"customer" => "CU#{unique_id()}"}
     }
+
     Map.merge(base, attrs)
   end
 
@@ -52,6 +54,7 @@ defmodule GoCardlessClient.Factory do
         "creditor" => "CR#{unique_id()}"
       }
     }
+
     Map.merge(base, attrs)
   end
 
@@ -71,6 +74,7 @@ defmodule GoCardlessClient.Factory do
         "creditor" => "CR#{unique_id()}"
       }
     }
+
     Map.merge(base, attrs)
   end
 
@@ -89,6 +93,7 @@ defmodule GoCardlessClient.Factory do
       "upcoming_payments" => [],
       "links" => %{"mandate" => "MD#{unique_id()}"}
     }
+
     Map.merge(base, attrs)
   end
 
@@ -101,6 +106,7 @@ defmodule GoCardlessClient.Factory do
       "resources" => %{},
       "links" => %{}
     }
+
     Map.merge(base, attrs)
   end
 
@@ -114,6 +120,7 @@ defmodule GoCardlessClient.Factory do
       "redirect_url" => "https://pay-sandbox.gocardless.com/obauth/RE#{unique_id()}",
       "links" => %{}
     }
+
     Map.merge(base, attrs)
   end
 
@@ -131,6 +138,7 @@ defmodule GoCardlessClient.Factory do
       "tax_currency" => nil,
       "links" => %{"creditor" => "CR#{unique_id()}"}
     }
+
     Map.merge(base, attrs)
   end
 
@@ -145,6 +153,7 @@ defmodule GoCardlessClient.Factory do
       "metadata" => %{},
       "links" => %{"payment" => "PM#{unique_id()}"}
     }
+
     Map.merge(base, attrs)
   end
 
@@ -162,6 +171,7 @@ defmodule GoCardlessClient.Factory do
       },
       "metadata" => {}
     }
+
     Map.merge(base, attrs)
   end
 
@@ -176,6 +186,7 @@ defmodule GoCardlessClient.Factory do
       "session_token" => nil,
       "links" => %{"billing_request" => "BRQ#{unique_id()}"}
     }
+
     Map.merge(base, attrs)
   end
 
@@ -187,6 +198,7 @@ defmodule GoCardlessClient.Factory do
       "status" => "created",
       "links" => %{}
     }
+
     Map.merge(base, attrs)
   end
 
@@ -202,6 +214,7 @@ defmodule GoCardlessClient.Factory do
         "mandate" => "MD#{unique_id()}"
       }
     }
+
     Map.merge(base, attrs)
   end
 
@@ -213,6 +226,7 @@ defmodule GoCardlessClient.Factory do
       "balance" => 250_000,
       "links" => %{"creditor" => "CR#{unique_id()}"}
     }
+
     Map.merge(base, attrs)
   end
 
@@ -230,6 +244,7 @@ defmodule GoCardlessClient.Factory do
         "creditor" => "CR#{unique_id()}"
       }
     }
+
     Map.merge(base, attrs)
   end
 
@@ -241,6 +256,7 @@ defmodule GoCardlessClient.Factory do
       "status" => "created",
       "links" => %{"payment_account" => "PA#{unique_id()}"}
     }
+
     Map.merge(base, attrs)
   end
 
@@ -253,6 +269,7 @@ defmodule GoCardlessClient.Factory do
       "resource_reference" => "fraudster@example.com",
       "active" => true
     }
+
     Map.merge(base, attrs)
   end
 
@@ -268,6 +285,7 @@ defmodule GoCardlessClient.Factory do
       "metadata" => %{},
       "links" => %{"mandate" => "MD#{unique_id()}"}
     }
+
     Map.merge(base, attrs)
   end
 
@@ -283,6 +301,7 @@ defmodule GoCardlessClient.Factory do
       "verification_status" => "successful",
       "links" => %{}
     }
+
     Map.merge(base, attrs)
   end
 
@@ -298,6 +317,7 @@ defmodule GoCardlessClient.Factory do
       "is_default_payout_account" => true,
       "links" => %{"creditor" => "CR#{unique_id()}"}
     }
+
     Map.merge(base, attrs)
   end
 
@@ -311,6 +331,7 @@ defmodule GoCardlessClient.Factory do
       "reference" => "ACMEPAY",
       "links" => %{"creditor" => "CR#{unique_id()}"}
     }
+
     Map.merge(base, attrs)
   end
 
@@ -323,6 +344,7 @@ defmodule GoCardlessClient.Factory do
       "start_date" => "2011-01-04",
       "end_date" => nil
     }
+
     Map.merge(base, attrs)
   end
 
@@ -334,6 +356,7 @@ defmodule GoCardlessClient.Factory do
       "logo_url" => "https://example.com/monzo-logo.png",
       "country_code" => "GB"
     }
+
     Map.merge(base, attrs)
   end
 
@@ -347,6 +370,7 @@ defmodule GoCardlessClient.Factory do
       "expires_at" => "2024-01-15T12:00:00.000Z",
       "links" => %{"billing_request" => "BRQ#{unique_id()}"}
     }
+
     Map.merge(base, attrs)
   end
 
@@ -359,6 +383,7 @@ defmodule GoCardlessClient.Factory do
         "payout" => "PO#{unique_id()}"
       }
     }
+
     Map.merge(base, attrs)
   end
 
@@ -368,6 +393,7 @@ defmodule GoCardlessClient.Factory do
       "bic" => "BARCGB22",
       "available_debit_schemes" => ["bacs"]
     }
+
     Map.merge(base, attrs)
   end
 
@@ -383,6 +409,7 @@ defmodule GoCardlessClient.Factory do
       "type" => "creditor_account",
       "links" => %{"creditor" => "CR#{unique_id()}"}
     }
+
     Map.merge(base, attrs)
   end
 
@@ -393,6 +420,7 @@ defmodule GoCardlessClient.Factory do
       "rate" => "1.1650",
       "time" => "2024-01-15T10:00:00.000Z"
     }
+
     Map.merge(base, attrs)
   end
 
@@ -408,6 +436,7 @@ defmodule GoCardlessClient.Factory do
       "description" => "B2B SaaS platform",
       "links" => %{"creditor" => "CR#{unique_id()}"}
     }
+
     Map.merge(base, attrs)
   end
 
@@ -421,6 +450,7 @@ defmodule GoCardlessClient.Factory do
       "request_body" => Jason.encode!(%{"events" => []}),
       "response_body" => "OK"
     }
+
     Map.merge(base, attrs)
   end
 
@@ -431,6 +461,7 @@ defmodule GoCardlessClient.Factory do
       "balance_limit" => -50_000,
       "links" => %{"creditor" => "CR#{unique_id()}"}
     }
+
     Map.merge(base, attrs)
   end
 

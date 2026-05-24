@@ -17,10 +17,15 @@ defmodule GoCardlessClient.Resources.SubscriptionsTest do
         |> Conn.send_resp(201, Jason.encode!(%{"subscriptions" => sub}))
       end)
 
-      assert {:ok, result} = Subscriptions.create(client, %{
-        amount: 2500, currency: "GBP", interval_unit: "monthly", interval: 1,
-        links: %{mandate: "MD123"}
-      })
+      assert {:ok, result} =
+               Subscriptions.create(client, %{
+                 amount: 2500,
+                 currency: "GBP",
+                 interval_unit: "monthly",
+                 interval: 1,
+                 links: %{mandate: "MD123"}
+               })
+
       assert result["amount"] == 2500
     end
   end

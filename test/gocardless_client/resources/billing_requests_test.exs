@@ -17,9 +17,11 @@ defmodule GoCardlessClient.Resources.BillingRequestsTest do
         |> Conn.send_resp(201, Jason.encode!(%{"billing_requests" => br}))
       end)
 
-      assert {:ok, result} = BillingRequests.create(client, %{
-        mandate_request: %{currency: "GBP"}
-      })
+      assert {:ok, result} =
+               BillingRequests.create(client, %{
+                 mandate_request: %{currency: "GBP"}
+               })
+
       assert result["status"] == "pending"
     end
   end
@@ -30,16 +32,22 @@ defmodule GoCardlessClient.Resources.BillingRequestsTest do
         br = build(:billing_request)
         action = unquote(action)
 
-        Bypass.expect_once(bypass, "POST", "/billing_requests/BRQ123/actions/#{action}", fn conn ->
-          {:ok, body, conn} = Conn.read_body(conn)
-          parsed = Jason.decode!(body)
-          assert Map.has_key?(parsed, "billing_requests"),
-                 "action '#{action}' body must be wrapped in 'billing_requests' key, got: #{inspect(Map.keys(parsed))}"
+        Bypass.expect_once(
+          bypass,
+          "POST",
+          "/billing_requests/BRQ123/actions/#{action}",
+          fn conn ->
+            {:ok, body, conn} = Conn.read_body(conn)
+            parsed = Jason.decode!(body)
 
-          conn
-          |> Conn.put_resp_content_type("application/json")
-          |> Conn.send_resp(200, Jason.encode!(%{"billing_requests" => br}))
-        end)
+            assert Map.has_key?(parsed, "billing_requests"),
+                   "action '#{action}' body must be wrapped in 'billing_requests' key, got: #{inspect(Map.keys(parsed))}"
+
+            conn
+            |> Conn.put_resp_content_type("application/json")
+            |> Conn.send_resp(200, Jason.encode!(%{"billing_requests" => br}))
+          end
+        )
 
         func = String.to_existing_atom(action)
         assert {:ok, _} = apply(BillingRequests, func, [client, "BRQ123", %{}])
@@ -51,19 +59,26 @@ defmodule GoCardlessClient.Resources.BillingRequestsTest do
     test "POSTs to select_institution action", %{client: client, bypass: bypass} do
       br = build(:billing_request)
 
-      Bypass.expect_once(bypass, "POST", "/billing_requests/BRQ123/actions/select_institution", fn conn ->
-        {:ok, body, conn} = Conn.read_body(conn)
-        parsed = Jason.decode!(body)
-        assert parsed["billing_requests"]["institution"] == "MONZO"
+      Bypass.expect_once(
+        bypass,
+        "POST",
+        "/billing_requests/BRQ123/actions/select_institution",
+        fn conn ->
+          {:ok, body, conn} = Conn.read_body(conn)
+          parsed = Jason.decode!(body)
+          assert parsed["billing_requests"]["institution"] == "MONZO"
 
-        conn
-        |> Conn.put_resp_content_type("application/json")
-        |> Conn.send_resp(200, Jason.encode!(%{"billing_requests" => br}))
-      end)
+          conn
+          |> Conn.put_resp_content_type("application/json")
+          |> Conn.send_resp(200, Jason.encode!(%{"billing_requests" => br}))
+        end
+      )
 
-      assert {:ok, _} = BillingRequests.select_institution(client, "BRQ123", %{
-        institution: "MONZO", country_code: "GB"
-      })
+      assert {:ok, _} =
+               BillingRequests.select_institution(client, "BRQ123", %{
+                 institution: "MONZO",
+                 country_code: "GB"
+               })
     end
   end
 end
