@@ -1,8 +1,16 @@
 defmodule GoCardlessClient.Resources.Balances do
   @moduledoc """
-  GoCardlessClient Balances API.
+  GoCardless Balances API.
 
-  See https://developer.gocardless.com/api-reference/#balances for full documentation.
+  Returns balance information for the Payment Account(s) associated with your
+  creditor. Balances are read-only — there is no create or update endpoint.
+
+  ## Example
+
+      {:ok, %{items: balances}} = GoCardlessClient.Resources.Balances.list(client)
+      Enum.each(balances, fn b ->
+        IO.puts("\#{b["currency"]}: \#{b["amount"]}")
+      end)
   """
 
   alias GoCardlessClient.{Client, Paginator, Resource}
@@ -10,28 +18,7 @@ defmodule GoCardlessClient.Resources.Balances do
   @resource_key "balances"
   @base_path "/balances"
 
-  @doc "Creates a new balances resource."
-  @spec create(Client.t(), map(), keyword()) ::
-          {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
-  def create(%Client{} = client, params, opts \\ []) do
-    Resource.post(client, @base_path, @resource_key, params, opts)
-  end
-
-  @doc "Retrieves a single balances by ID."
-  @spec get(Client.t(), String.t(), keyword()) ::
-          {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
-  def get(%Client{} = client, id, opts \\ []) do
-    Resource.get(client, "#{@base_path}/#{id}", @resource_key, opts)
-  end
-
-  @doc "Updates a balances."
-  @spec update(Client.t(), String.t(), map(), keyword()) ::
-          {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
-  def update(%Client{} = client, id, params, opts \\ []) do
-    Resource.put(client, "#{@base_path}/#{id}", @resource_key, params, opts)
-  end
-
-  @doc "Lists balances with optional filter params."
+  @doc "Returns a page of balances. Accepts optional filter params."
   @spec list(Client.t(), map(), keyword()) ::
           {:ok, %{items: [map()], meta: map()}}
           | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
@@ -45,7 +32,7 @@ defmodule GoCardlessClient.Resources.Balances do
     Paginator.stream(client, @base_path, params, @resource_key, opts)
   end
 
-  @doc "Eagerly collects all balances into a list across all pages."
+  @doc "Eagerly collects all balances into a list."
   @spec collect_all(Client.t(), map(), keyword()) ::
           {:ok, [map()]} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
   def collect_all(%Client{} = client, params \\ %{}, opts \\ []) do
