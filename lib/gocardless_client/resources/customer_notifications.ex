@@ -1,58 +1,39 @@
 defmodule GoCardlessClient.Resources.CustomerNotifications do
   @moduledoc """
-  GoCardlessClient Customer Notifications API.
+  GoCardless Customer Notifications API.
 
-  See https://developer.gocardless.com/api-reference/#customer-notifications for full documentation.
+  Allows you to mark a customer notification as handled when you are managing
+  notifications yourself (rather than letting GoCardless send them automatically).
+
+  This is used in custom notification flows. When you handle a notification
+  yourself (e.g. send your own branded email), you call `handle/3` to signal
+  GoCardless that it should not send a duplicate notification.
+
+  ## Example
+
+      # In your notification handler:
+      def send_mandate_confirmation(notification_id) do
+        # Send your own branded email to the customer...
+        send_mandate_email()
+
+        # Then tell GoCardless you've handled it
+        {:ok, _} = GoCardlessClient.Resources.CustomerNotifications.handle(
+          client,
+          notification_id
+        )
+      end
   """
 
-  alias GoCardlessClient.{Client, Paginator, Resource}
+  alias GoCardlessClient.{Client, Resource}
 
   @resource_key "customer_notifications"
   @base_path "/customer_notifications"
 
-  @doc "Creates a new customer notifications resource."
-  @spec create(Client.t(), map(), keyword()) ::
-          {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
-  def create(%Client{} = client, params, opts \\ []) do
-    Resource.post(client, @base_path, @resource_key, params, opts)
-  end
+  @doc """
+  Marks a customer notification as handled by you.
 
-  @doc "Retrieves a single customer notifications by ID."
-  @spec get(Client.t(), String.t(), keyword()) ::
-          {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
-  def get(%Client{} = client, id, opts \\ []) do
-    Resource.get(client, "#{@base_path}/#{id}", @resource_key, opts)
-  end
-
-  @doc "Updates a customer notifications."
-  @spec update(Client.t(), String.t(), map(), keyword()) ::
-          {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
-  def update(%Client{} = client, id, params, opts \\ []) do
-    Resource.put(client, "#{@base_path}/#{id}", @resource_key, params, opts)
-  end
-
-  @doc "Lists customer_notifications with optional filter params."
-  @spec list(Client.t(), map(), keyword()) ::
-          {:ok, %{items: [map()], meta: map()}}
-          | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
-  def list(%Client{} = client, params \\ %{}, opts \\ []) do
-    Resource.list(client, @base_path, @resource_key, params, opts)
-  end
-
-  @doc "Returns a lazy `Stream` over all pages of customer_notifications."
-  @spec stream(Client.t(), map(), keyword()) :: Enumerable.t()
-  def stream(%Client{} = client, params \\ %{}, opts \\ []) do
-    Paginator.stream(client, @base_path, params, @resource_key, opts)
-  end
-
-  @doc "Eagerly collects all customer_notifications into a list across all pages."
-  @spec collect_all(Client.t(), map(), keyword()) ::
-          {:ok, [map()]} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
-  def collect_all(%Client{} = client, params \\ %{}, opts \\ []) do
-    Paginator.collect(client, @base_path, params, @resource_key, opts)
-  end
-
-  @doc "Marks a notification as handled (opt-in)."
+  After calling this, GoCardless will not send its own notification for this event.
+  """
   @spec handle(Client.t(), String.t(), map(), keyword()) ::
           {:ok, map()} | {:error, GoCardlessClient.APIError.t() | GoCardlessClient.Error.t()}
   def handle(%Client{} = client, id, params \\ %{}, opts \\ []) do
