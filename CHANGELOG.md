@@ -1,111 +1,146 @@
 # Changelog
 
-All notable changes to `gocardless_client` are documented in this file.
+All notable changes to this project will be documented in this file.
 
-The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
-This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [2.0.0] — 2026-05-24
 
----
+### 🔴 Breaking bug fixes
 
-## [1.0.0] — 2026-03-27
+- **`Resource.update/5` now uses HTTP POST** (was incorrectly using HTTP PUT).
+  GoCardless does not support PUT — all update operations require POST to the
+  resource endpoint. This was a silent runtime failure: all `update/4` calls
+  across every resource were returning `405 Method Not Allowed` from the API.
 
-### Initial production release
+- **Action endpoints now wrap params in the resource key** (was wrapping in `"data"`).
+  The GoCardless API requires `%{"billing_requests" => params}`, not
+  `%{"data" => params}`. Every `cancel`, `retry`, `fulfil`, `pause`, `resume`,
+  `approve`, and other action calls were failing with validation errors.
 
-#### Core Architecture
-- `GoCardlessClient.Client` — functional client struct built with `new/1` / `new!/1`
-- `GoCardlessClient.Config` — NimbleOptions-validated configuration schema with `new/1` / `new!/1`
-- `GoCardlessClient.Application` — OTP application, starts Finch pools and ETS rate-limit table
-- `GoCardlessClient.HTTP.Client` — Finch-based HTTP client with exponential backoff + full jitter, `Retry-After` support, Telemetry events
-- `GoCardlessClient.HTTP.RateLimiter` — concurrent ETS-backed `X-RateLimit-*` header tracking
-- `GoCardlessClient.Paginator` — lazy `Stream`-based cursor pagination with `stream/5` and `collect/5`
-- `GoCardlessClient.Resource` — shared `get/list/post/put/delete/action` helpers for all resource modules
+- **Fixed `GoCardless-Version` header name** (was `GoCardlessClient-Version`).
+  The API was silently receiving no valid version header on every request.
 
-#### Resource Modules (44 total)
-All GoCardlessClient API endpoints are implemented:
+### 🆕 New modules
 
-**Billing Requests**
-- `GoCardlessClient.Resources.BankAuthorisations` — create, get
-- `GoCardlessClient.Resources.BillingRequests` — create, get, list, stream, collect_all, collect_customer_details, collect_bank_account, confirm_payer_details, fulfil, cancel, notify, fallback, change_currency, select_institution
-- `GoCardlessClient.Resources.BillingRequestFlows` — create, initialise
-- `GoCardlessClient.Resources.BillingRequestTemplates` — create, get, list, update
-- `GoCardlessClient.Resources.Institutions` — list, list_for_billing_request
+- `GoCardlessClient.Resources.BillingRequestWithActions` — single-call API
+  combining billing request creation + actions (`POST /billing_requests_with_actions`)
+- `GoCardlessClient.Resources.OutboundPaymentImports` — bulk outbound payment
+  import batches (`POST /outbound_payment_imports`, `GET`, list)
+- `GoCardlessClient.Resources.OutboundPaymentImportEntries` — entries within an
+  outbound payment import batch
 
-**Core Endpoints**
-- `GoCardlessClient.Resources.Balances` — list
-- `GoCardlessClient.Resources.BankAccountDetails` — get (encrypted)
-- `GoCardlessClient.Resources.BankAccountHolderVerifications` — create, get (CoP)
-- `GoCardlessClient.Resources.BankDetailsLookups` — lookup
-- `GoCardlessClient.Resources.Blocks` — create, get, list, disable, enable, create_by_reference
-- `GoCardlessClient.Resources.Creditors` — create, get, update, list, stream
-- `GoCardlessClient.Resources.CreditorBankAccounts` — create, get, disable, list
-- `GoCardlessClient.Resources.CurrencyExchangeRates` — list, stream, collect_all
-- `GoCardlessClient.Resources.CustomerBankAccounts` — create, get, update, disable, list, stream, collect_all
-- `GoCardlessClient.Resources.CustomerNotifications` — handle
-- `GoCardlessClient.Resources.Customers` — create, get, update, remove, list, stream, collect_all
-- `GoCardlessClient.Resources.Events` — get, list, stream, collect_all
-- `GoCardlessClient.Resources.Exports` — get, list
-- `GoCardlessClient.Resources.FundsAvailabilities` — get
-- `GoCardlessClient.Resources.InstalmentSchedules` — create_with_dates, create_with_schedule, get, update, cancel, list, stream
-- `GoCardlessClient.Resources.Logos` — create_for_creditor
-- `GoCardlessClient.Resources.Mandates` — create, get, update, cancel, reinstate, list, stream, collect_all
-- `GoCardlessClient.Resources.MandateImports` — create, get, submit, cancel
-- `GoCardlessClient.Resources.MandateImportEntries` — create, list
-- `GoCardlessClient.Resources.MandatePDFs` — create
-- `GoCardlessClient.Resources.NegativeBalanceLimits` — list, create, delete
-- `GoCardlessClient.Resources.OutboundPayments` — create, create_withdrawal, cancel, approve, get, update, list, stream, collect_all
-- `GoCardlessClient.Resources.PayerAuthorisations` — create, get, update, submit, confirm
-- `GoCardlessClient.Resources.PayerThemes` — create_for_creditor
-- `GoCardlessClient.Resources.PaymentAccounts` — get, list
-- `GoCardlessClient.Resources.PaymentAccountTransactions` — get, list, stream, collect_all
-- `GoCardlessClient.Resources.Payments` — create, get, update, cancel, retry, list, stream, collect_all
-- `GoCardlessClient.Resources.Payouts` — get, update, list, stream, collect_all
-- `GoCardlessClient.Resources.PayoutItems` — list, stream, collect_all
-- `GoCardlessClient.Resources.RedirectFlows` — create, get, complete
-- `GoCardlessClient.Resources.RefundEligibilityIndicators` — get
-- `GoCardlessClient.Resources.Refunds` — create, get, update, list, stream, collect_all
-- `GoCardlessClient.Resources.ScenarioSimulators` — run
-- `GoCardlessClient.Resources.SchemeIdentifiers` — create, get, list
-- `GoCardlessClient.Resources.Subscriptions` — create, get, update, pause, resume, cancel, list, stream, collect_all
-- `GoCardlessClient.Resources.TaxRates` — get, list
-- `GoCardlessClient.Resources.TransferredMandates` — get
-- `GoCardlessClient.Resources.Transfers` — create, get, list
-- `GoCardlessClient.Resources.VerificationDetails` — create, list
-- `GoCardlessClient.Resources.Webhooks` (resource) — get, list, retry, stream, collect_all
+### 🆕 New functions on existing modules
 
-#### Webhooks
-- `GoCardlessClient.Webhooks` — HMAC-SHA256 signature verification (constant-time, no `plug` dependency), event parsing, IP allowlist, event-type predicates, idempotency key generation
-- `GoCardlessClient.Webhooks.Plug` — Phoenix/Plug middleware with `read_body/2` custom body reader, stores events in `conn.private[:gocardless_events]`
+- `OutboundPayments.withdrawal/3` — `POST /outbound_payments/withdrawal`
+- `OutboundPayments.statistics/2` — `GET /outbound_payments/statistics`
+- `Blocks.block_by_reference/3` — `POST /blocks/block_by_reference`
+- `Institutions.list_for_billing_request/4` — `GET /billing_requests/:id/institutions`
+- `ScenarioSimulators.run/4` — `POST /scenario_simulators/:type/actions/run`
+  (previously referenced in docs but never defined — caused `UndefinedFunctionError`)
+- `RedirectFlows.list/3` and `stream/3`
+- `InstalmentSchedules.create_with_dates/3` and `create_with_schedule/3`
+  (replaces ambiguous `create/3` with clearly named wrappers)
 
-#### OAuth2
-- `GoCardlessClient.OAuth` — `authorise_url/2`, `exchange_code/2`, `lookup_token/2`, `disconnect/2`
+### 🆕 New webhook event type helpers
 
-#### Request Signing
-- `GoCardlessClient.Signing` — ECDSA P-256 / RSA request signing for Outbound Payments; produces `Date`, `Nonce`, `Digest`, `Signature` headers
+Added to `GoCardlessClient.Webhooks`:
+- `instalment_schedule_event?/1`
+- `outbound_payment_event?/1`
+- `creditor_event?/1`
+- `customer_event?/1`
+- `export_event?/1`
+- `payment_account_transaction_event?/1`
+- `scheme_identifier_event?/1`
 
-#### Error Handling
-- `GoCardlessClient.APIError` — structured API error with `status`, `type`, `message`, `request_id`, `errors` fields; implements `Exception`; predicate helpers: `not_found?`, `conflict?`, `validation_failed?`, `rate_limited?`, `invalid_state?`, `server_error?`
-- `GoCardlessClient.FieldError` — field-level validation error from `GoCardlessClient.APIError.errors`
-- `GoCardlessClient.Error` — network/SDK error with typed `reason`; `timeout/0`, `circuit_open/0`, `budget_exhausted/0`, `network/1` constructors
+### 🗑️ Removed
 
-#### Observability
-- Telemetry events: `[:gocardless, :request, :start]`, `[:gocardless, :request, :stop]`, `[:gocardless, :request, :exception]`
-- ETS-backed rate-limit state via `GoCardlessClient.Client.rate_limit_state/1`
+- `GoCardlessClient.Resources.Transfers` — this module referenced a
+  `/transfers` endpoint that does not exist in the GoCardless API. All calls
+  would have returned `404`. Removed entirely.
 
-#### Testing
-- `GoCardlessClient.Factory` — test fixture factory for all resource types
-- `GoCardlessClient.TestCase` — ExUnit case template with Bypass integration
-- 8 test modules covering: Config, Client, Error, APIError, FieldError, Webhooks, Paginator, Resources
+### 🧹 Phantom function cleanup
 
-#### Quality
-- Credo strict configuration (`.credo.exs`)
-- Dialyzer PLT configuration in `mix.exs`
-- GitHub Actions CI: test matrix across Elixir 1.15/1.16/1.17 + OTP 25/26/27, Credo, format check, coverage, Dialyzer
-- `.formatter.exs` with 100-character line length
+Removed `create/3` and `update/4` from read-only resources where these
+operations don't exist in the API:
 
----
+- `Balances` — read-only; removed phantom `create/3`, `update/4`
+- `CurrencyExchangeRates` — read-only; removed phantom `create/3`, `update/4`
+- `Events` — read-only; removed phantom `create/3`, `update/4`
+- `Exports` — read-only; removed phantom `create/3`, `update/4`
+- `NegativeBalanceLimits` — read-only; removed phantom `create/3`, `update/4`
+- `PayoutItems` — list-only; removed phantom `create/3`, `get/3`, `update/4`
+- `PaymentAccounts` — read-only; removed phantom `create/3`, `update/4`
+- `PaymentAccountTransactions` — read-only; removed phantom `create/3`, `update/4`
+- `Payouts` — read-only except metadata; removed phantom `create/3`
+- `TaxRates` — read-only; removed phantom `create/3`, `update/4`
+- `TransferredMandates` — get-only; removed phantom `create/3`, `list/3`, `update/4`
+- `Institutions` — removed phantom `create/3`, `update/4`
+- `Logos` — write-only; removed phantom `get/3`, `list/3`, `update/4`
+- `MandatePDFs` — write-only; removed phantom `get/3`, `list/3`
+- `FundsAvailabilities` — renamed `create/3` → `check/3`; removed phantom `get/3`, `list/3`
+- `CustomerNotifications` — removed phantom `create/3`, `get/3`, `list/3`, `update/4`; kept `handle/4`
+- `BankDetailsLookups` — renamed `create/3` → `lookup/3`; removed phantom `get/3`, `list/3`
+- `BankAccountDetails` — removed phantom `create/3`, `update/4`; kept `get/3`
+- `MandateImports` — removed phantom `list/3` (the API has no list endpoint for this resource)
 
-## [Unreleased]
+### 🧪 Tests
 
-No unreleased changes.
+- **Fixed `GoCardlessClient.TestCase`** — Bypass server URL was opened but
+  never wired to the client; every HTTP test was silently hitting the real
+  GoCardless sandbox (or failing with connection errors). The client now
+  receives a `_base_url_override` pointing at the local Bypass server.
 
-[1.0.0]: https://github.com/iamkanishka/gocardless_client/releases/tag/v1.0.0
+- Added Bypass-wired tests for **15 resource modules** (from 2):
+  - `CustomersTest` — create, get, list, update (POST not PUT), remove (DELETE), header assertions
+  - `PaymentsTest` — create, cancel (action key), retry, list, update (POST not PUT)
+  - `MandatesTest` — create, cancel (action key), reinstate
+  - `BillingRequestsTest` — create, all action endpoints (verifies resource key wrapping)
+  - `SubscriptionsTest` — create, pause, resume, cancel
+  - `ScenarioSimulatorsTest` — run/4 path, mandate scenario, invalid scenario guard
+  - `BlocksTest` — create, block_by_reference, disable/enable actions
+  - `OutboundPaymentsTest` — create, withdrawal, statistics, cancel, approve
+  - `InstalmentSchedulesTest` — create_with_dates, create_with_schedule, cancel
+  - `BillingRequestWithActionsTest` — full single-call flow
+  - `RedirectFlowsTest` — create, complete, list
+  - `PayoutsTest` — list, update (POST), PayoutItems.list
+  - `WebhooksResourceTest` — list, retry
+  - `EventsTest` — list with filters, get
+  - `MiscResourcesTest` — BankDetailsLookups, FundsAvailabilities, MandatePDFs, Institutions, Balances, CustomerNotifications
+  - `PaginatorTest` — single-page, multi-page cursor following, error propagation
+  - `WebhooksHelpersTest` — all 7 new event type helpers, payload size guard
+
+### Upgrade guide
+
+**Update all `create/3` calls for renamed functions:**
+
+```elixir
+# Before (returns 404)
+GoCardlessClient.Resources.FundsAvailabilities.create(client, params)
+GoCardlessClient.Resources.BankDetailsLookups.create(client, params)
+
+# After
+GoCardlessClient.Resources.FundsAvailabilities.check(client, params)
+GoCardlessClient.Resources.BankDetailsLookups.lookup(client, params)
+```
+
+**Replace ambiguous `InstalmentSchedules.create/3`:**
+
+```elixir
+# Before
+GoCardlessClient.Resources.InstalmentSchedules.create(client, %{instalments: [...]})
+
+# After (explicit)
+GoCardlessClient.Resources.InstalmentSchedules.create_with_dates(client, %{instalments: [...]})
+GoCardlessClient.Resources.InstalmentSchedules.create_with_schedule(client, %{interval_unit: "monthly", ...})
+```
+
+**Remove any direct `Transfers` module usage:**
+
+```elixir
+# Before (returns 404 — endpoint doesn't exist)
+GoCardlessClient.Resources.Transfers.create(client, params)
+
+# Use TransferredMandates for post-switch mandate data:
+GoCardlessClient.Resources.TransferredMandates.get(client, mandate_id)
+```
+
+## [1.0.0] — Initial release
