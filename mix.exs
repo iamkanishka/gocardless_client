@@ -1,9 +1,9 @@
 defmodule GoCardlessClient.MixProject do
   use Mix.Project
 
-  @version "1.0.0"
+  @version "2.0.0"
   @source_url "https://github.com/iamkanishka/gocardless_client"
-  @description "Production-ready Elixir client for the GoCardlessClient API."
+  @description "Production-ready Elixir client for the GoCardless API."
 
   def project do
     [
@@ -64,8 +64,7 @@ defmodule GoCardlessClient.MixProject do
       licenses: ["MIT"],
       links: %{
         "GitHub" => @source_url,
-        "GoCardlessClient API Docs" => "https://developer.gocardless.com/api-reference/",
-        "Changelog" => "#{@source_url}/blob/master/CHANGELOG.md"
+        "GoCardless API Docs" => "https://developer.gocardless.com/api-reference/"
       },
       files: ~w(lib config mix.exs README.md CHANGELOG.md LICENSE .formatter.exs)
     ]
@@ -80,15 +79,19 @@ defmodule GoCardlessClient.MixProject do
       groups_for_modules: [
         Core: [GoCardlessClient, GoCardlessClient.Client, GoCardlessClient.Config],
         "HTTP Layer": [GoCardlessClient.HTTP.Client, GoCardlessClient.HTTP.RateLimiter],
-        Resources: [
+        "Billing Requests": [
+          GoCardlessClient.Resources.BankAuthorisations,
+          GoCardlessClient.Resources.BillingRequestFlows,
+          GoCardlessClient.Resources.BillingRequestTemplates,
+          GoCardlessClient.Resources.BillingRequestWithActions,
+          GoCardlessClient.Resources.BillingRequests,
+          GoCardlessClient.Resources.Institutions
+        ],
+        "Core Resources": [
           GoCardlessClient.Resources.Balances,
           GoCardlessClient.Resources.BankAccountDetails,
           GoCardlessClient.Resources.BankAccountHolderVerifications,
-          GoCardlessClient.Resources.BankAuthorisations,
           GoCardlessClient.Resources.BankDetailsLookups,
-          GoCardlessClient.Resources.BillingRequestFlows,
-          GoCardlessClient.Resources.BillingRequestTemplates,
-          GoCardlessClient.Resources.BillingRequests,
           GoCardlessClient.Resources.Blocks,
           GoCardlessClient.Resources.CreditorBankAccounts,
           GoCardlessClient.Resources.Creditors,
@@ -100,13 +103,14 @@ defmodule GoCardlessClient.MixProject do
           GoCardlessClient.Resources.Exports,
           GoCardlessClient.Resources.FundsAvailabilities,
           GoCardlessClient.Resources.InstalmentSchedules,
-          GoCardlessClient.Resources.Institutions,
           GoCardlessClient.Resources.Logos,
           GoCardlessClient.Resources.MandateImportEntries,
           GoCardlessClient.Resources.MandateImports,
           GoCardlessClient.Resources.MandatePDFs,
           GoCardlessClient.Resources.Mandates,
           GoCardlessClient.Resources.NegativeBalanceLimits,
+          GoCardlessClient.Resources.OutboundPaymentImportEntries,
+          GoCardlessClient.Resources.OutboundPaymentImports,
           GoCardlessClient.Resources.OutboundPayments,
           GoCardlessClient.Resources.PayerAuthorisations,
           GoCardlessClient.Resources.PayerThemes,
@@ -116,22 +120,24 @@ defmodule GoCardlessClient.MixProject do
           GoCardlessClient.Resources.PayoutItems,
           GoCardlessClient.Resources.Payouts,
           GoCardlessClient.Resources.RedirectFlows,
-          GoCardlessClient.Resources.RefundEligibilityIndicators,
           GoCardlessClient.Resources.Refunds,
           GoCardlessClient.Resources.ScenarioSimulators,
           GoCardlessClient.Resources.SchemeIdentifiers,
           GoCardlessClient.Resources.Subscriptions,
           GoCardlessClient.Resources.TaxRates,
-          GoCardlessClient.Resources.Transfers,
           GoCardlessClient.Resources.TransferredMandates,
           GoCardlessClient.Resources.VerificationDetails,
-          GoCardlessClient.Resources.WebhookResources
+          GoCardlessClient.Resources.Webhooks
         ],
         Webhooks: [GoCardlessClient.Webhooks, GoCardlessClient.Webhooks.Plug],
         OAuth2: [GoCardlessClient.OAuth],
         "Request Signing": [GoCardlessClient.Signing],
         Pagination: [GoCardlessClient.Paginator],
-        Errors: [GoCardlessClient.APIError, GoCardlessClient.FieldError, GoCardlessClient.Error]
+        Errors: [
+          GoCardlessClient.APIError,
+          GoCardlessClient.FieldError,
+          GoCardlessClient.Error
+        ]
       ]
     ]
   end
